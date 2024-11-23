@@ -1,3 +1,4 @@
+from __future__ import annotations
 from fastapi import FastAPI, HTTPException, UploadFile, File, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -11,6 +12,10 @@ from typing import Optional, Dict, Any
 import shutil
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
+try:
+    from typing import Literal  # Python 3.8+
+except ImportError:
+    from typing_extensions import Literal  # Python 3.6-3.7
 
 app = FastAPI()
 
@@ -39,8 +44,13 @@ def get_db():
 # 站点模型
 class Site(BaseModel):
     domain: str
-    config_path: str = None
+    config_path: Optional[str] = None
     ssl_enabled: bool = False
+
+    class Config:
+        # 添加配置以支持旧版本
+        allow_population_by_field_name = True
+        use_enum_values = True
 
 # 服务器模型
 class Server(BaseModel):
@@ -183,7 +193,7 @@ async def list_servers():
 executor = ThreadPoolExecutor()
 
 # 修改异步函数，使用线程池执行同步操作
-async def execute_ssh_command_async(server_id: int, command: str):
+async def execute_ssh_command_async(server_id: int, command: str) -> Dict[str, Any]:
     loop = asyncio.get_event_loop()
     return await loop.run_in_executor(executor, execute_ssh_command, server_id, command)
 
@@ -359,18 +369,18 @@ async def get_server_logs(server_id: int):
 class ConnectionManager:
     def __init__(self):
         self.active_connections: Dict[int, WebSocket] = {}
-        self._lock = asyncio.Lock()  # 添加锁以确保线程安全
+        self._lock = asyncio.Lock()
 
-    async def connect(self, server_id: int, websocket: WebSocket):
+    async def connect(self, server_id: int, websocket: WebSocket) -> None:
         await websocket.accept()
         async with self._lock:
             self.active_connections[server_id] = websocket
 
-    def disconnect(self, server_id: int):
+    def disconnect(self, server_id: int) -> None:
         if server_id in self.active_connections:
             del self.active_connections[server_id]
 
-    async def send_message(self, server_id: int, message: dict):
+    async def send_message(self, server_id: int, message: Dict[str, Any]) -> None:
         if server_id in self.active_connections:
             try:
                 await self.active_connections[server_id].send_json(message)

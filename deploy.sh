@@ -15,34 +15,6 @@ check_system_type() {
     fi
 }
 
-# 安装Python 3.9 (CentOS/RHEL)
-install_python39_centos() {
-    echo "正在安装Python 3.9..."
-    
-    # 安装依赖
-    sudo yum update -y
-    sudo yum groupinstall "Development Tools" -y
-    sudo yum install openssl-devel bzip2-devel libffi-devel xz-devel -y
-    
-    # 下载并编译Python 3.9
-    cd /tmp
-    wget https://www.python.org/ftp/python/3.9.16/Python-3.9.16.tgz
-    tar xzf Python-3.9.16.tgz
-    cd Python-3.9.16
-    ./configure --enable-optimizations
-    sudo make altinstall
-    
-    # 创建软链接
-    sudo ln -sf /usr/local/bin/python3.9 /usr/bin/python3
-    sudo ln -sf /usr/local/bin/pip3.9 /usr/bin/pip3
-    
-    cd -
-    
-    # 验证安装
-    python3 --version
-    pip3 --version
-}
-
 # 检查Python版本
 check_python_version() {
     if ! command -v python3 &> /dev/null; then
@@ -51,20 +23,26 @@ check_python_version() {
     fi
     
     local version=$(python3 -c 'import sys; print(".".join(map(str, sys.version_info[:2])))')
-    if (( $(echo "$version < 3.6" | bc -l) )); then
-        echo "当前Python版本为 $version，需要3.6或更高版本"
+    if [ "$version" != "3.6" ]; then
+        echo "当前Python版本为 $version，需要Python 3.6"
         return 1
     fi
     return 0
 }
 
-# 检查必要的命令
-check_command() {
-    if ! command -v $1 &> /dev/null; then
-        echo "错误: 请先安装 $1"
-        return 1
-    fi
-    return 0
+# 安装Python 3.6 (CentOS/RHEL)
+install_python36_centos() {
+    echo "正在安装Python 3.6..."
+    
+    # 安装EPEL仓库
+    sudo yum install -y epel-release
+    
+    # 安装Python 3.6
+    sudo yum install -y python36 python36-devel python36-pip
+    
+    # 验证安装
+    python3.6 --version
+    pip3.6 --version
 }
 
 # 主安装流程
@@ -73,53 +51,22 @@ SYSTEM_TYPE=$(check_system_type)
 
 if ! check_python_version; then
     if [ "$SYSTEM_TYPE" = "RHEL" ]; then
-        echo "正在安装Python 3.9..."
-        install_python39_centos
+        echo "正在安装Python 3.6..."
+        install_python36_centos
     else
-        echo "错误: 请手动安装Python 3.7或更高版本"
+        echo "错误: 请手动安装Python 3.6"
         exit 1
     fi
 fi
-
-# 检查其他必要命令
-check_command pip3 || {
-    echo "正在安装pip3..."
-    if [ "$SYSTEM_TYPE" = "RHEL" ]; then
-        sudo yum install -y python3-pip
-    elif [ "$SYSTEM_TYPE" = "DEBIAN" ]; then
-        sudo apt-get install -y python3-pip
-    fi
-}
-
-check_command sqlite3 || {
-    echo "正在安装sqlite3..."
-    if [ "$SYSTEM_TYPE" = "RHEL" ]; then
-        sudo yum install -y sqlite-devel
-    elif [ "$SYSTEM_TYPE" = "DEBIAN" ]; then
-        sudo apt-get install -y sqlite3 libsqlite3-dev
-    fi
-}
 
 # 安装系统依赖
 echo "2. 安装系统依赖..."
 if [ "$SYSTEM_TYPE" = "RHEL" ]; then
     sudo yum install -y python3-devel libffi-devel openssl-devel gcc python3-pip sqlite-devel
     sudo yum groupinstall -y "Development Tools"
-    
-    # 重新编译Python以支持SQLite3
-    cd /tmp
-    wget https://www.python.org/ftp/python/3.9.16/Python-3.9.16.tgz
-    tar xzf Python-3.9.16.tgz
-    cd Python-3.9.16
-    ./configure --enable-loadable-sqlite-extensions
-    sudo make
-    sudo make altinstall
-    cd -
-    rm -rf /tmp/Python-3.9.16*
-    
 elif [ "$SYSTEM_TYPE" = "DEBIAN" ]; then
     sudo apt-get update
-    sudo apt-get install -y python3-dev libffi-dev libssl-dev gcc build-essential python3-venv libsqlite3-dev
+    sudo apt-get install -y python3.6-dev libffi-dev libssl-dev gcc build-essential python3.6-venv libsqlite3-dev
 elif [ "$SYSTEM_TYPE" = "ARCH" ]; then
     sudo pacman -Sy python-pip base-devel openssl sqlite
 fi
@@ -130,7 +77,7 @@ PROJECT_ROOT=$(pwd)
 # 创建并激活虚拟环境
 echo "3. 创建虚拟环境..."
 if [ ! -d "venv" ]; then
-    python3 -m venv venv
+    python3.6 -m venv venv
     echo "虚拟环境创建成功"
 else
     echo "虚拟环境已存在，跳过创建"
@@ -139,9 +86,9 @@ fi
 # 激活虚拟环境
 source venv/bin/activate
 
-# 升级pip和setuptools
+# 升级pip和setuptools到兼容版本
 echo "4. 升级pip和setuptools..."
-pip install --upgrade pip setuptools wheel
+pip install --upgrade "pip<21.0" "setuptools<45.0" wheel
 
 # 安装Python依赖
 echo "5. 安装Python依赖..."
