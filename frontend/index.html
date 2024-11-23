@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <title>站点管理系统</title>
+    <link rel="stylesheet" href="https://unpkg.com/element-plus/dist/index.css">
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/monitor.css">
+    <link rel="stylesheet" href="css/server.css">
+    <script src="https://unpkg.com/vue@3"></script>
+    <script src="https://unpkg.com/element-plus"></script>
+</head>
+<body>
+    <div id="app">
+        <Transition name="fade">
+            <div class="loading-container" v-if="loading">
+                <el-icon class="is-loading" :size="64" color="#409EFF">
+                    <Loading />
+                </el-icon>
+                <div class="loading-text">系统加载中...</div>
+            </div>
+        </Transition>
+
+        <div class="container">
+            <el-tabs v-model="activeTab">
+                <el-tab-pane label="站点管理" name="sites">
+                    <div id="sites-container"></div>
+                </el-tab-pane>
+
+                <el-tab-pane label="服务器管理" name="servers">
+                    <div id="servers-container"></div>
+                </el-tab-pane>
+            </el-tabs>
+        </div>
+    </div>
+
+    <script src="js/api/index.js"></script>
+    <script src="js/api/sites.js"></script>
+    <script src="js/api/servers.js"></script>
+    <script src="js/api/monitor.js"></script>
+
+    <script src="js/components/sites/SiteList.js"></script>
+    <script src="js/components/sites/SiteForm.js"></script>
+    <script src="js/components/servers/ServerList.js"></script>
+    <script src="js/components/servers/ServerForm.js"></script>
+    <script src="js/components/servers/CommandExecutor.js"></script>
+    <script src="js/components/monitor/Dashboard.js"></script>
+    <script src="js/components/monitor/ServiceList.js"></script>
+    <script src="js/components/monitor/SystemLogs.js"></script>
+
+    <script src="views/sites.js"></script>
+    <script src="views/servers.js"></script>
+    <script src="views/monitor.js"></script>
+
+    <script src="js/app.js"></script>
+    <script src="js/utils/websocket.js"></script>
+</body>
+</html> 
