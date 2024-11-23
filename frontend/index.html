@@ -32,6 +32,8 @@
                 </el-tab-pane>
             </el-tabs>
         </div>
+
+        <Guide v-if="showGuide" @complete="handleGuideComplete" />
     </div>
 
     <script src="js/api/index.js"></script>

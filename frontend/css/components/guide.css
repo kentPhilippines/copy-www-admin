@@ -1,0 +1,61 @@
+.guide-dialog {
+    .el-dialog__body {
+        padding: 30px;
+    }
+}
+
+.guide-container {
+    min-height: 400px;
+    display: flex;
+    flex-direction: column;
+}
+
+.guide-steps {
+    margin-bottom: 40px;
+}
+
+.guide-content {
+    flex: 1;
+    padding: 20px 0;
+}
+
+.step-content {
+    text-align: center;
+
+    h2 {
+        color: #409EFF;
+        margin-bottom: 20px;
+    }
+
+    ul {
+        text-align: left;
+        margin: 20px auto;
+        max-width: 400px;
+        li {
+            margin: 10px 0;
+            color: #606266;
+        }
+    }
+}
+
+.feature-demo {
+    margin: 20px 0;
+    
+    img, video {
+        max-width: 100%;
+        border-radius: 8px;
+        box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+    }
+}
+
+.guide-footer {
+    margin-top: 30px;
+    text-align: right;
+}
+
+.step-image {
+    margin: 20px 0;
+    img {
+        max-width: 300px;
+    }
+} 

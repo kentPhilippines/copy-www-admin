@@ -16,11 +16,25 @@ check_command python3
 check_command pip3
 check_command sqlite3
 
+# 安装系统依赖
+echo "2. 安装系统依赖..."
+if [ -f /etc/debian_version ]; then
+    # Debian/Ubuntu
+    sudo apt-get update
+    sudo apt-get install -y python3-dev libffi-dev libssl-dev gcc build-essential
+elif [ -f /etc/redhat-release ]; then
+    # CentOS/RHEL
+    sudo yum install -y python3-devel libffi-devel openssl-devel gcc
+elif [ -f /etc/arch-release ]; then
+    # Arch Linux
+    sudo pacman -Sy python-pip base-devel openssl
+fi
+
 # 项目根目录
 PROJECT_ROOT=$(pwd)
 
 # 创建并激活虚拟环境
-echo "2. 创建虚拟环境..."
+echo "3. 创建虚拟环境..."
 if [ ! -d "venv" ]; then
     python3 -m venv venv
     echo "虚拟环境创建成功"
@@ -31,15 +45,23 @@ fi
 # 激活虚拟环境
 source venv/bin/activate
 
+# 升级pip
+echo "4. 升级pip..."
+pip install --upgrade pip
+
+# 安装wheel（避免编译错误）
+echo "5. 安装wheel..."
+pip install wheel
+
 # 安装Python依赖
-echo "3. 安装Python依赖..."
+echo "6. 安装Python依赖..."
 pip install -r requirements.txt || {
     echo "requirements.txt 不存在，安装基本依赖..."
-    pip install fastapi uvicorn paramiko
+    pip install fastapi uvicorn paramiko websockets
 }
 
 # 初始化数据库
-echo "4. 初始化数据库..."
+echo "7. 初始化数据库..."
 if [ ! -f sites.db ]; then
     if [ -f database/schema.sql ]; then
         sqlite3 sites.db < database/schema.sql
@@ -53,8 +75,8 @@ else
 fi
 
 # 检查并创建必要的目录
-echo "5. 检查项目结构..."
-for dir in frontend/{css,js} backend; do
+echo "8. 检查项目结构..."
+for dir in frontend/{css,js,js/utils,js/components/{sites,servers,monitor}} backend; do
     if [ ! -d "$dir" ]; then
         mkdir -p "$dir"
         echo "创建目录: $dir"
@@ -62,7 +84,7 @@ for dir in frontend/{css,js} backend; do
 done
 
 # 检查前端文件
-echo "6. 检查前端文件..."
+echo "9. 检查前端文件..."
 for file in frontend/css/style.css frontend/js/api.js frontend/js/app.js frontend/index.html; do
     if [ ! -f "$file" ]; then
         echo "警告: 缺少文件 $file"
@@ -70,13 +92,13 @@ for file in frontend/css/style.css frontend/js/api.js frontend/js/app.js fronten
 done
 
 # 检查后端文件
-echo "7. 检查后端文件..."
+echo "10. 检查后端文件..."
 if [ ! -f "backend/main.py" ]; then
     echo "警告: 缺少后端主文件 backend/main.py"
 fi
 
-# 创建或更新启动脚本
-echo "8. 配置启动脚本..."
+# 创建启动脚本
+echo "11. 创建启动脚本..."
 cat > start.sh << 'EOL'
 #!/bin/bash
 
@@ -88,25 +110,19 @@ check_port() {
     fi
 }
 
-# 只检查9001端口
+# 检查9001端口
 check_port 9001
 
 # 激活虚拟环境
 source venv/bin/activate
 
-# 启动后端服务
-echo "启动后端服务..."
+# 启动服务
+echo "启动服务..."
 python backend/main.py &
-BACKEND_PID=$!
-
-# 启动前端服务
-echo "启动前端服务..."
-cd frontend && python -m http.server 9001 &
-FRONTEND_PID=$!
+SERVER_PID=$!
 
 # 保存PID到文件
-echo $BACKEND_PID > ../backend.pid
-echo $FRONTEND_PID > ../frontend.pid
+echo $SERVER_PID > server.pid
 
 echo "服务已启动!"
 echo "访问地址: http://localhost:9001"
@@ -118,22 +134,16 @@ EOL
 chmod +x start.sh
 
 # 创建停止脚本
-echo "9. 创建停止脚本..."
+echo "12. 创建停止脚本..."
 cat > stop.sh << 'EOL'
 #!/bin/bash
 
 echo "停止服务..."
 
-# 停止后端服务
-if [ -f backend.pid ]; then
-    kill $(cat backend.pid) 2>/dev/null
-    rm backend.pid
-fi
-
-# 停止前端服务
-if [ -f frontend.pid ]; then
-    kill $(cat frontend.pid) 2>/dev/null
-    rm frontend.pid
+# 停止服务
+if [ -f server.pid ]; then
+    kill $(cat server.pid) 2>/dev/null
+    rm server.pid
 fi
 
 echo "服务已停止"

@@ -42,6 +42,8 @@ createApp({
             serverId: null
         })
 
+        const showGuide = ref(!localStorage.getItem('guideCompleted'))
+
         // 获取服务器列表
         const fetchServers = async () => {
             serverTableLoading.value = true
@@ -195,6 +197,12 @@ createApp({
             loading.value = false
         }, 1500)
 
+        const handleGuideComplete = () => {
+            showGuide.value = false
+            // 这里可以加载实际的系统数据
+            loadSystemData()
+        }
+
         return {
             activeTab,
             sites,
@@ -222,7 +230,9 @@ createApp({
             systemLogs,
             showMonitorDialog,
             getProgressColor,
-            getLogSeverityType
+            getLogSeverityType,
+            showGuide,
+            handleGuideComplete
         }
     }
 }).use(ElementPlus).mount('#app') 
