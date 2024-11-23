@@ -1,6 +1,7 @@
 const { createApp, ref, watch } = Vue
 
-createApp({
+// 在createApp之前注册Guide组件
+const app = createApp({
     setup() {
         const activeTab = ref('sites')
         const sites = ref([])
@@ -199,8 +200,9 @@ createApp({
 
         const handleGuideComplete = () => {
             showGuide.value = false
-            // 这里可以加载实际的系统数据
-            loadSystemData()
+            // 加载系统数据
+            fetchServers()
+            fetchSites()
         }
 
         return {
@@ -235,4 +237,13 @@ createApp({
             handleGuideComplete
         }
     }
-}).use(ElementPlus).mount('#app') 
+})
+
+// 注册Guide组件
+app.component('Guide', Guide)
+
+// 使用Element Plus
+app.use(ElementPlus)
+
+// 挂载应用
+app.mount('#app') 

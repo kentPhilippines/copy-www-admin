@@ -1,4 +1,5 @@
-export const Guide = {
+const Guide = {
+    name: 'Guide',
     template: `
         <el-dialog
             v-model="visible"
@@ -29,9 +30,6 @@ export const Guide = {
                             <li>实时查看系统性能</li>
                             <li>快速执行远程命令</li>
                         </ul>
-                        <div class="step-image">
-                            <img src="/static/images/welcome.png" alt="欢迎">
-                        </div>
                     </div>
 
                     <!-- 站点管理说明 -->
@@ -44,9 +42,6 @@ export const Guide = {
                             <li>设置Nginx配置</li>
                             <li>监控站点状态</li>
                         </ul>
-                        <div class="feature-demo">
-                            <video src="/static/videos/site-demo.mp4" controls></video>
-                        </div>
                     </div>
 
                     <!-- 服务器管理说明 -->
@@ -59,9 +54,6 @@ export const Guide = {
                             <li>查看命令执行历史</li>
                             <li>实时监控服务器状态</li>
                         </ul>
-                        <div class="feature-demo">
-                            <img src="/static/images/server-management.png" alt="服务器管理">
-                        </div>
                     </div>
 
                     <!-- 监控功能说明 -->
@@ -74,9 +66,6 @@ export const Guide = {
                             <li>服务状态检查</li>
                             <li>系统日志实时查看</li>
                         </ul>
-                        <div class="feature-demo">
-                            <img src="/static/images/monitoring.png" alt="监控功能">
-                        </div>
                     </div>
                 </div>
 
@@ -123,10 +112,11 @@ export const Guide = {
             })
         },
         completeGuide() {
-            // 保存引导完成状态
             localStorage.setItem('guideCompleted', 'true')
-            this.visible = false
             this.$emit('complete')
         }
     }
-} 
+}
+
+// 注册为全局组件
+app.component('Guide', Guide) 
