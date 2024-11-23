@@ -7,8 +7,10 @@ from pydantic import BaseModel
 from datetime import datetime
 import os
 import paramiko
-from typing import Optional, Dict
+from typing import Optional, Dict, Any
 import shutil
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
 
 app = FastAPI()
 
@@ -177,9 +179,17 @@ async def list_servers():
     servers = db.execute("SELECT id, name, ip, username, status FROM servers").fetchall()
     return [dict(server) for server in servers]
 
+# 创建线程池用于执行同步操作
+executor = ThreadPoolExecutor()
+
+# 修改异步函数，使用线程池执行同步操作
+async def execute_ssh_command_async(server_id: int, command: str):
+    loop = asyncio.get_event_loop()
+    return await loop.run_in_executor(executor, execute_ssh_command, server_id, command)
+
 @app.post("/api/servers/{server_id}/execute")
-async def execute_command(server_id: int, command: Command):
-    return execute_ssh_command(server_id, command.command)
+async def execute_command_endpoint(server_id: int, command: Command):
+    return await execute_ssh_command_async(server_id, command.command)
 
 @app.get("/api/servers/{server_id}/logs")
 async def get_command_logs(server_id: int):
@@ -349,10 +359,12 @@ async def get_server_logs(server_id: int):
 class ConnectionManager:
     def __init__(self):
         self.active_connections: Dict[int, WebSocket] = {}
+        self._lock = asyncio.Lock()  # 添加锁以确保线程安全
 
     async def connect(self, server_id: int, websocket: WebSocket):
         await websocket.accept()
-        self.active_connections[server_id] = websocket
+        async with self._lock:
+            self.active_connections[server_id] = websocket
 
     def disconnect(self, server_id: int):
         if server_id in self.active_connections:
@@ -360,7 +372,10 @@ class ConnectionManager:
 
     async def send_message(self, server_id: int, message: dict):
         if server_id in self.active_connections:
-            await self.active_connections[server_id].send_json(message)
+            try:
+                await self.active_connections[server_id].send_json(message)
+            except Exception:
+                await self.disconnect(server_id)
 
 manager = ConnectionManager()
 

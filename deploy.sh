@@ -51,8 +51,8 @@ check_python_version() {
     fi
     
     local version=$(python3 -c 'import sys; print(".".join(map(str, sys.version_info[:2])))')
-    if (( $(echo "$version < 3.7" | bc -l) )); then
-        echo "当前Python版本为 $version，需要3.7或更高版本"
+    if (( $(echo "$version < 3.6" | bc -l) )); then
+        echo "当前Python版本为 $version，需要3.6或更高版本"
         return 1
     fi
     return 0
