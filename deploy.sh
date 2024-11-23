@@ -124,12 +124,15 @@ fi
 
 # 检查并创建必要的目录
 echo "8. 检查项目结构..."
-for dir in frontend/{css,js,js/utils,js/components/{sites,servers,monitor}} backend; do
+for dir in frontend/{css,css/components,js,js/utils,js/api,js/components/{sites,servers,monitor},static}; do
     if [ ! -d "$dir" ]; then
         mkdir -p "$dir"
         echo "创建目录: $dir"
     fi
 done
+
+# 确保目录权限正确
+chmod -R 755 frontend
 
 # 检查前端文件
 echo "9. 检查前端文件..."

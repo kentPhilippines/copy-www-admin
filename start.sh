@@ -1,11 +1,22 @@
 #!/bin/bash
 
-# 检查服务是否已运行
+# 检查端口是否被占用（支持lsof和netstat两种方式）
 check_port() {
-    if lsof -Pi :$1 -sTCP:LISTEN -t >/dev/null ; then
-        echo "端口 $1 已被占用，请先停止相关服务"
-        exit 1
+    local port=$1
+    if command -v lsof &> /dev/null; then
+        if lsof -Pi :$port -sTCP:LISTEN -t &> /dev/null; then
+            echo "端口 $port 已被占用，请先停止相关服务"
+            return 1
+        fi
+    elif command -v netstat &> /dev/null; then
+        if netstat -tuln | grep ":$port " &> /dev/null; then
+            echo "端口 $port 已被占用，请先停止相关服务"
+            return 1
+        fi
+    else
+        echo "警告: 无法检查端口占用情况（需要lsof或netstat命令）"
     fi
+    return 0
 }
 
 # 获取公网IP
@@ -20,7 +31,7 @@ get_public_ip() {
 }
 
 # 检查9001端口
-check_port 9001
+check_port 9001 || exit 1
 
 # 激活虚拟环境
 source venv/bin/activate

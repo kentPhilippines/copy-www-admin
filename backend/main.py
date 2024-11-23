@@ -1,7 +1,7 @@
 from fastapi import FastAPI, HTTPException, UploadFile, File, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, HTMLResponse
 import sqlite3
 from pydantic import BaseModel
 from datetime import datetime
@@ -22,13 +22,16 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# 挂载前端静态文件
-app.mount("/static", StaticFiles(directory="frontend"), name="static")
+# 挂载静态文件目录
+app.mount("/js", StaticFiles(directory="frontend/js"), name="javascript")
+app.mount("/css", StaticFiles(directory="frontend/css"), name="css")
+app.mount("/static", StaticFiles(directory="frontend/static"), name="static")
 
 # 根路由返回前端首页
-@app.get("/")
+@app.get("/", response_class=HTMLResponse)
 async def read_root():
-    return FileResponse("frontend/index.html")
+    with open("frontend/index.html", "r", encoding="utf-8") as f:
+        return f.read()
 
 # 数据库连接
 def get_db():
