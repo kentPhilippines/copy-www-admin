@@ -2,6 +2,16 @@
 
 echo "=== 站点管理系统部署脚本 ==="
 
+# 检查Python版本
+check_python_version() {
+    local version=$(python3 -c 'import sys; print(".".join(map(str, sys.version_info[:2])))')
+    if (( $(echo "$version < 3.7" | bc -l) )); then
+        echo "错误: 需要Python 3.7或更高版本，当前版本为 $version"
+        echo "请升级Python版本后重试"
+        exit 1
+    fi
+}
+
 # 检查必要的命令是否存在
 check_command() {
     if ! command -v $1 &> /dev/null; then
@@ -10,21 +20,23 @@ check_command() {
     fi
 }
 
-# 检查必要的命令
+# 检查环境
 echo "1. 检查环境..."
 check_command python3
 check_command pip3
 check_command sqlite3
+check_python_version
 
 # 安装系统依赖
 echo "2. 安装系统依赖..."
 if [ -f /etc/debian_version ]; then
     # Debian/Ubuntu
     sudo apt-get update
-    sudo apt-get install -y python3-dev libffi-dev libssl-dev gcc build-essential
+    sudo apt-get install -y python3-dev libffi-dev libssl-dev gcc build-essential python3-venv
 elif [ -f /etc/redhat-release ]; then
     # CentOS/RHEL
-    sudo yum install -y python3-devel libffi-devel openssl-devel gcc
+    sudo yum install -y python3-devel libffi-devel openssl-devel gcc python3-pip
+    sudo yum groupinstall -y "Development Tools"
 elif [ -f /etc/arch-release ]; then
     # Arch Linux
     sudo pacman -Sy python-pip base-devel openssl
@@ -45,20 +57,27 @@ fi
 # 激活虚拟环境
 source venv/bin/activate
 
-# 升级pip
-echo "4. 升级pip..."
-pip install --upgrade pip
-
-# 安装wheel（避免编译错误）
-echo "5. 安装wheel..."
-pip install wheel
+# 升级pip和setuptools
+echo "4. 升级pip和setuptools..."
+pip install --upgrade pip setuptools wheel
 
 # 安装Python依赖
-echo "6. 安装Python依赖..."
-pip install -r requirements.txt || {
-    echo "requirements.txt 不存在，安装基本依赖..."
-    pip install fastapi uvicorn paramiko websockets
-}
+echo "5. 安装Python依赖..."
+pip install -r requirements.txt
+
+# 如果安装失败，尝试单独安装每个包
+if [ $? -ne 0 ]; then
+    echo "尝试单独安装依赖..."
+    pip install fastapi
+    pip install uvicorn
+    pip install paramiko
+    pip install websockets
+    pip install python-multipart
+    pip install python-jose[cryptography]
+    pip install passlib[bcrypt]
+    pip install python-dotenv
+    pip install aiofiles
+fi
 
 # 初始化数据库
 echo "7. 初始化数据库..."
@@ -110,6 +129,16 @@ check_port() {
     fi
 }
 
+# 获取公网IP
+get_public_ip() {
+    PUBLIC_IP=$(curl -s ifconfig.me || curl -s icanhazip.com || curl -s ipinfo.io/ip)
+    if [ -z "$PUBLIC_IP" ]; then
+        echo "无法获取公网IP"
+        return 1
+    fi
+    echo "$PUBLIC_IP"
+}
+
 # 检查9001端口
 check_port 9001
 
@@ -124,8 +153,40 @@ SERVER_PID=$!
 # 保存PID到文件
 echo $SERVER_PID > server.pid
 
-echo "服务已启动!"
-echo "访问地址: http://localhost:9001"
+echo "=== 服务启动成功 ==="
+echo
+echo "本地访问地址: http://localhost:9001"
+
+# 获取并显示公网访问地址
+PUBLIC_IP=$(get_public_ip)
+if [ ! -z "$PUBLIC_IP" ]; then
+    echo "公网访问地址: http://$PUBLIC_IP:9001"
+    echo
+    echo "如果无法通过公网地址访问，请检查防火墙设置："
+    echo
+    echo "1. CentOS/RHEL系统："
+    echo "   开放端口命令："
+    echo "   sudo firewall-cmd --zone=public --add-port=9001/tcp --permanent"
+    echo "   sudo firewall-cmd --reload"
+    echo
+    echo "2. Ubuntu/Debian系统："
+    echo "   开放端口命令："
+    echo "   sudo ufw allow 9001/tcp"
+    echo "   sudo ufw reload"
+    echo
+    echo "3. 阿里云/腾讯云等云服务器："
+    echo "   请在控制台安全组中添加入站规则，开放9001端口"
+    echo
+    echo "4. 检查端口是否开放命令："
+    echo "   netstat -tulpn | grep 9001"
+    echo
+fi
+
+echo "提示："
+echo "1. 使用 Ctrl+C 停止服务"
+echo "2. 或者使用 ./stop.sh 停止服务"
+echo "3. 查看日志：tail -f nohup.out"
+echo
 
 # 等待服务运行
 wait
@@ -149,7 +210,8 @@ fi
 echo "服务已停止"
 EOL
 
-chmod +x stop.sh
+chmod +x stop.sh 
+chmod +x uninstall.sh
 
 echo "=== 部署完成 ==="
 echo "使用说明:"
