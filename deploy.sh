@@ -103,13 +103,25 @@ check_command sqlite3 || {
 # 安装系统依赖
 echo "2. 安装系统依赖..."
 if [ "$SYSTEM_TYPE" = "RHEL" ]; then
-    sudo yum install -y python3-devel libffi-devel openssl-devel gcc python3-pip
+    sudo yum install -y python3-devel libffi-devel openssl-devel gcc python3-pip sqlite-devel
     sudo yum groupinstall -y "Development Tools"
+    
+    # 重新编译Python以支持SQLite3
+    cd /tmp
+    wget https://www.python.org/ftp/python/3.9.16/Python-3.9.16.tgz
+    tar xzf Python-3.9.16.tgz
+    cd Python-3.9.16
+    ./configure --enable-loadable-sqlite-extensions
+    sudo make
+    sudo make altinstall
+    cd -
+    rm -rf /tmp/Python-3.9.16*
+    
 elif [ "$SYSTEM_TYPE" = "DEBIAN" ]; then
     sudo apt-get update
-    sudo apt-get install -y python3-dev libffi-dev libssl-dev gcc build-essential python3-venv
+    sudo apt-get install -y python3-dev libffi-dev libssl-dev gcc build-essential python3-venv libsqlite3-dev
 elif [ "$SYSTEM_TYPE" = "ARCH" ]; then
-    sudo pacman -Sy python-pip base-devel openssl
+    sudo pacman -Sy python-pip base-devel openssl sqlite
 fi
 
 # 项目根目录
@@ -277,7 +289,7 @@ if [ -f server.pid ]; then
     rm server.pid
 fi
 
-echo "服务已停止"
+echo "服务已止"
 EOL
 
 chmod +x stop.sh 
