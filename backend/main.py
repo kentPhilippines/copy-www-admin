@@ -1,4 +1,3 @@
-from __future__ import annotations
 from fastapi import FastAPI, HTTPException, UploadFile, File, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -8,14 +7,10 @@ from pydantic import BaseModel
 from datetime import datetime
 import os
 import paramiko
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 import shutil
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
-try:
-    from typing import Literal  # Python 3.8+
-except ImportError:
-    from typing_extensions import Literal  # Python 3.6-3.7
 
 app = FastAPI()
 
