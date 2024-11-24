@@ -118,5 +118,5 @@ const Guide = {
     }
 }
 
-// 注册为全局组件
-app.component('Guide', Guide) 
+// 导出组件而不是直接注册
+export default Guide; 

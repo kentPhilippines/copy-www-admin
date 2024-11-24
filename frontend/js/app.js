@@ -1,6 +1,9 @@
-const { createApp, ref, watch } = Vue
+import Guide from './components/onboarding/Guide.js';
+import { SitesAPI } from './api/sites.js';
 
-// 在createApp之前注册Guide组件
+const { createApp, ref, watch } = Vue;
+
+// 创建应用实例
 const app = createApp({
     setup() {
         const activeTab = ref('sites')
@@ -205,6 +208,15 @@ const app = createApp({
             fetchSites()
         }
 
+        // 添加fetchSites函数
+        const fetchSites = async () => {
+            try {
+                sites.value = await SitesAPI.list();
+            } catch (error) {
+                ElMessage.error('获取站点列表失败');
+            }
+        };
+
         return {
             activeTab,
             sites,
@@ -234,16 +246,18 @@ const app = createApp({
             getProgressColor,
             getLogSeverityType,
             showGuide,
-            handleGuideComplete
+            handleGuideComplete,
+            fetchSites
         }
     }
 })
 
-// 注册Guide组件
-app.component('Guide', Guide)
+// 注册组件
+app.component('Guide', Guide);
+app.component('Loading', ElementPlusIconsVue.Loading);
 
 // 使用Element Plus
-app.use(ElementPlus)
+app.use(ElementPlus);
 
 // 挂载应用
-app.mount('#app') 
+app.mount('#app'); 
