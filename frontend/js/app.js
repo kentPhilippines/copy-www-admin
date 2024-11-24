@@ -141,10 +141,41 @@ const App = {
         };
 
         this.completeGuide = () => {
+            // 设置引导完成标记
             localStorage.setItem('guideCompleted', 'true');
+            
+            // 隐藏引导页面
+            const guideElement = document.getElementById('guide');
+            if (guideElement) {
+                guideElement.style.display = 'none';
+            }
+            
+            // 更新状态
             this.data.showGuide = false;
-            this.renderUI();
-            this.loadInitialData();
+            
+            // 显示加载动画
+            this.data.loading = true;
+            
+            // 加载初始数据
+            setTimeout(async () => {
+                try {
+                    await Promise.all([
+                        this.loadSites(),
+                        this.loadServers()
+                    ]);
+                    
+                    // 显示主界面
+                    const mainContent = document.getElementById('main-content');
+                    if (mainContent) {
+                        mainContent.style.display = 'block';
+                    }
+                } catch (error) {
+                    console.error('加载数据失败:', error);
+                    Message.error('系统加载失败，请刷新页面重试');
+                } finally {
+                    this.data.loading = false;
+                }
+            }, 500);
         };
     },
 
@@ -190,7 +221,7 @@ const App = {
             }
         } catch (error) {
             console.error('加载数据失败:', error);
-            Message.error('系统加载失败，请刷新页面重试');
+            Message.error('系统加载失败，请��新页面重试');
         } finally {
             this.data.loading = false;
         }
@@ -346,6 +377,296 @@ const App = {
                 </tbody>
             </table>
         `;
+    },
+
+    // 加载站点数据
+    async loadSites() {
+        try {
+            const response = await fetch('/api/sites');
+            if (!response.ok) {
+                throw new Error('获取站点列表失败');
+            }
+            this.data.sites = await response.json();
+            this.renderSiteList();
+        } catch (error) {
+            console.error('加载站点数据失败:', error);
+            throw error;
+        }
+    },
+
+    // 加载服务器数据
+    async loadServers() {
+        try {
+            const response = await fetch('/api/servers');
+            if (!response.ok) {
+                throw new Error('获取服务器列表失败');
+            }
+            this.data.servers = await response.json();
+            this.renderServerList();
+        } catch (error) {
+            console.error('加载服务器数据失败:', error);
+            throw error;
+        }
+    },
+
+    // 添加配置站点方法
+    configSite(siteId) {
+        // 获取站点信息
+        const site = this.data.sites.find(s => s.id === siteId);
+        if (!site) {
+            Message.error('站点不存在');
+            return;
+        }
+
+        // TODO: 实现站点配置对话框
+        console.log('配置站点:', site);
+    },
+
+    // 添加删除站点方法
+    deleteSite(siteId) {
+        if (!confirm('确定要删除这个站点吗？')) {
+            return;
+        }
+
+        fetch(`/api/sites/${siteId}`, {
+            method: 'DELETE'
+        })
+        .then(response => response.json())
+        .then(() => {
+            Message.success('站点删除成功');
+            this.loadSites();
+        })
+        .catch(error => {
+            console.error('删除站点失败:', error);
+            Message.error('删除站点失败');
+        });
+    },
+
+    // 添加显示站点对话框方法
+    showAddSiteDialog() {
+        const dialog = document.createElement('div');
+        dialog.className = 'modal';
+        dialog.innerHTML = `
+            <div class="modal-overlay"></div>
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>添加站点</h3>
+                    <button class="close-btn" onclick="this.closest('.modal').remove()">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <form id="add-site-form" class="site-form">
+                        <div class="form-group">
+                            <label>域名</label>
+                            <input 
+                                type="text" 
+                                name="domain"
+                                placeholder="请输入域名"
+                                pattern="^[a-zA-Z0-9][-a-zA-Z0-9]{0,62}(\.[a-zA-Z0-9][-a-zA-Z0-9]{0,62})+$"
+                                required
+                            >
+                        </div>
+                        <div class="form-group">
+                            <label>配置路径</label>
+                            <input 
+                                type="text" 
+                                name="config_path"
+                                placeholder="请输入Nginx配置文件路径"
+                                required
+                            >
+                        </div>
+                        <div class="form-group">
+                            <label class="checkbox-label">
+                                <input type="checkbox" name="ssl_enabled"> SSL证书
+                            </label>
+                        </div>
+                        <div class="form-actions">
+                            <button type="button" class="btn btn-default" onclick="this.closest('.modal').remove()">取消</button>
+                            <button type="submit" class="btn btn-primary">确定</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(dialog);
+
+        // 添加表单提交处理
+        document.getElementById('add-site-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            const siteData = {
+                domain: formData.get('domain'),
+                config_path: formData.get('config_path'),
+                ssl_enabled: formData.get('ssl_enabled') === 'on'
+            };
+
+            fetch('/api/sites', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(siteData)
+            })
+            .then(response => response.json())
+            .then(() => {
+                Message.success('站点添加成功');
+                this.loadSites();
+                dialog.remove();
+            })
+            .catch(error => {
+                console.error('添加站点失败:', error);
+                Message.error('添加站点失败');
+            });
+        });
+    },
+
+    // 添加显示服务器对话框方法
+    showAddServerDialog() {
+        const dialog = document.createElement('div');
+        dialog.className = 'modal';
+        dialog.innerHTML = `
+            <div class="modal-overlay"></div>
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>添加服务器</h3>
+                    <button class="close-btn" onclick="this.closest('.modal').remove()">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <form id="add-server-form" class="server-form">
+                        <div class="form-group">
+                            <label>服务器名称</label>
+                            <input 
+                                type="text" 
+                                name="name"
+                                placeholder="请输入服务器名称"
+                                required
+                            >
+                        </div>
+                        <div class="form-group">
+                            <label>IP地址</label>
+                            <input 
+                                type="text" 
+                                name="ip"
+                                placeholder="请输入IP地址"
+                                pattern="^(\d{1,3}\.){3}\d{1,3}$"
+                                required
+                            >
+                        </div>
+                        <div class="form-group">
+                            <label>用户名</label>
+                            <input 
+                                type="text" 
+                                name="username"
+                                placeholder="请输入用户名"
+                                required
+                            >
+                        </div>
+                        <div class="form-group">
+                            <label>认证方式</label>
+                            <div class="radio-group">
+                                <label>
+                                    <input type="radio" name="auth_type" value="password" checked> 密码
+                                </label>
+                                <label>
+                                    <input type="radio" name="auth_type" value="key"> SSH密钥
+                                </label>
+                            </div>
+                        </div>
+                        <div class="form-group password-group">
+                            <label>密码</label>
+                            <input 
+                                type="password" 
+                                name="password"
+                                placeholder="请输入密码"
+                            >
+                        </div>
+                        <div class="form-group key-group" style="display: none;">
+                            <label>SSH密钥</label>
+                            <input 
+                                type="file" 
+                                name="key_file"
+                                accept=".pem,.key"
+                            >
+                        </div>
+                        <div class="form-actions">
+                            <button type="button" class="btn btn-default" onclick="this.closest('.modal').remove()">取消</button>
+                            <button type="submit" class="btn btn-primary">确定</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(dialog);
+
+        // 处理认证方式切换
+        const authTypeInputs = dialog.querySelectorAll('input[name="auth_type"]');
+        const passwordGroup = dialog.querySelector('.password-group');
+        const keyGroup = dialog.querySelector('.key-group');
+
+        authTypeInputs.forEach(input => {
+            input.addEventListener('change', (e) => {
+                if (e.target.value === 'password') {
+                    passwordGroup.style.display = 'block';
+                    keyGroup.style.display = 'none';
+                } else {
+                    passwordGroup.style.display = 'none';
+                    keyGroup.style.display = 'block';
+                }
+            });
+        });
+
+        // 添加表单提交处理
+        document.getElementById('add-server-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            const serverData = {
+                name: formData.get('name'),
+                ip: formData.get('ip'),
+                username: formData.get('username'),
+                auth_type: formData.get('auth_type')
+            };
+
+            if (serverData.auth_type === 'password') {
+                serverData.password = formData.get('password');
+            } else {
+                const keyFile = formData.get('key_file');
+                if (keyFile) {
+                    try {
+                        const keyFormData = new FormData();
+                        keyFormData.append('file', keyFile);
+                        const response = await fetch('/api/upload-key', {
+                            method: 'POST',
+                            body: keyFormData
+                        });
+                        const result = await response.json();
+                        serverData.key_path = result.path;
+                    } catch (error) {
+                        console.error('上传SSH密钥失败:', error);
+                        Message.error('上传SSH密钥失败');
+                        return;
+                    }
+                }
+            }
+
+            fetch('/api/servers', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(serverData)
+            })
+            .then(response => response.json())
+            .then(() => {
+                Message.success('服务器添加成功');
+                this.loadServers();
+                dialog.remove();
+            })
+            .catch(error => {
+                console.error('添加服务器失败:', error);
+                Message.error('添加服务器失败');
+            });
+        });
     }
 };
 

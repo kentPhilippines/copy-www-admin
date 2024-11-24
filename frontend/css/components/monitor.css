@@ -1,0 +1,65 @@
+.dashboard-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 20px;
+    padding: 20px;
+}
+
+.dashboard-card {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+    padding: 20px;
+}
+
+.dashboard-card h3 {
+    margin: 0 0 20px 0;
+    color: var(--text-color);
+    font-size: 16px;
+    font-weight: 500;
+}
+
+.chart {
+    height: 200px;
+    position: relative;
+}
+
+.info-panel {
+    padding: 10px;
+}
+
+.info-item {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 10px;
+    padding: 10px;
+    background: var(--bg-color);
+    border-radius: 4px;
+}
+
+.info-item .label {
+    color: var(--text-color);
+    font-weight: 500;
+}
+
+.info-item .value {
+    color: var(--primary-color);
+}
+
+.gauge-chart {
+    position: relative;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.gauge-value {
+    position: absolute;
+    font-size: 24px;
+    font-weight: bold;
+    color: var(--primary-color);
+}
+
+.line-chart {
+    height: 100%;
+} 
