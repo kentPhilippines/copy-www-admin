@@ -1,17 +1,15 @@
 import Guide from './components/onboarding/Guide.js';
 
-const { createApp, ref, watch } = Vue;
-
 // 创建应用实例
-const app = createApp({
-    setup() {
-        const activeTab = ref('sites')
-        const sites = ref([])
-        const servers = ref([])
-        const loading = ref(true)
-        const showGuide = ref(!localStorage.getItem('guideCompleted'))
-        
-        const clientInstallCommand = ref(`
+const app = {
+    data() {
+        return {
+            activeTab: 'sites',
+            sites: [],
+            servers: [],
+            loading: false,
+            showGuide: !localStorage.getItem('guideCompleted'),
+            clientInstallCommand: `
 # 客户端安装说明
 # -------------------
 # 注意：客户端安装程序正在完善中
@@ -21,16 +19,18 @@ const app = createApp({
 # 1. 服务器ID: [添加服务器后在此显示]
 # 2. 服务器地址: ${window.location.hostname}:9001
 # 3. 监控间隔: 60秒
-`)
-
-        // 复制命令到剪贴板
-        const copyInstallCommand = () => {
-            navigator.clipboard.writeText(clientInstallCommand.value.trim())
-            showMessage('安装命令已复制到剪贴板', 'success')
+`
         }
+    },
+    methods: {
+        // 复制命令到剪贴板
+        copyInstallCommand() {
+            navigator.clipboard.writeText(this.clientInstallCommand.trim())
+            this.showMessage('安装命令已复制到剪贴板', 'success')
+        },
 
         // 显示消息提示
-        const showMessage = (message, type = 'info') => {
+        showMessage(message, type = 'info') {
             const messageDiv = document.createElement('div')
             messageDiv.className = `message message-${type}`
             messageDiv.textContent = message
@@ -42,28 +42,28 @@ const app = createApp({
                     document.body.removeChild(messageDiv)
                 }, 300)
             }, 3000)
-        }
+        },
 
         // 获取站点列表
-        const fetchSites = async () => {
+        async fetchSites() {
             try {
-                sites.value = await fetch('/api/sites').then(r => r.json())
+                this.sites = await fetch('/api/sites').then(r => r.json())
             } catch (error) {
-                showMessage('获取站点列表失败', 'error')
+                this.showMessage('获取站点列表失败', 'error')
             }
-        }
+        },
 
         // 获取服务器列表
-        const fetchServers = async () => {
+        async fetchServers() {
             try {
-                servers.value = await fetch('/api/servers').then(r => r.json())
+                this.servers = await fetch('/api/servers').then(r => r.json())
             } catch (error) {
-                showMessage('获取服务器列表失败', 'error')
+                this.showMessage('获取服务器列表失败', 'error')
             }
-        }
+        },
 
         // 添加服务器
-        const addServer = async (serverData) => {
+        async addServer(serverData) {
             try {
                 const response = await fetch('/api/servers', {
                     method: 'POST',
@@ -74,18 +74,18 @@ const app = createApp({
                 })
                 const result = await response.json()
                 if (response.ok) {
-                    showMessage('服务器添加成功', 'success')
-                    await fetchServers()
+                    this.showMessage('服务器添加成功', 'success')
+                    await this.fetchServers()
                 } else {
                     throw new Error(result.detail || '添加失败')
                 }
             } catch (error) {
-                showMessage(error.message, 'error')
+                this.showMessage(error.message, 'error')
             }
-        }
+        },
 
         // 删除服务器
-        const deleteServer = async (serverId) => {
+        async deleteServer(serverId) {
             if (!confirm('确定要删除这个服务器吗？')) {
                 return
             }
@@ -94,61 +94,60 @@ const app = createApp({
                     method: 'DELETE'
                 })
                 if (response.ok) {
-                    showMessage('服务器删除成功', 'success')
-                    await fetchServers()
+                    this.showMessage('服务器删除成功', 'success')
+                    await this.fetchServers()
                 } else {
                     throw new Error('删除失败')
                 }
             } catch (error) {
-                showMessage(error.message, 'error')
+                this.showMessage(error.message, 'error')
+            }
+        },
+
+        // 修改初始化加载逻辑
+        async initialize() {
+            try {
+                if (!this.showGuide) {
+                    await Promise.all([this.fetchSites(), this.fetchServers()])
+                }
+            } catch (error) {
+                console.error('加载数据失败:', error)
+                this.loading = true
+                Message.error('系统加载失败，请刷新页面重试')
+            }
+        },
+
+        // 修改引导完成处理方法
+        handleGuideComplete() {
+            this.showGuide = false
+            localStorage.setItem('guideCompleted', 'true')
+            this.initialize()
+        }
+    },
+    mounted() {
+        // 初始化
+        this.initialize()
+
+        // 如果是首次访问，显示引导
+        if (this.showGuide) {
+            const guideElement = document.getElementById('guide')
+            if (guideElement) {
+                const guide = new Guide({
+                    target: guideElement,
+                    props: {
+                        onComplete: this.handleGuideComplete
+                    }
+                })
             }
         }
-
-        // 引导完成处理
-        const handleGuideComplete = () => {
-            showGuide.value = false
-            loading.value = true
-            setTimeout(async () => {
-                try {
-                    await Promise.all([fetchSites(), fetchServers()])
-                } catch (error) {
-                    console.error('加载数据失败:', error)
-                } finally {
-                    loading.value = false
-                }
-            }, 500)
-        }
-
-        // 初始化加载
-        if (!showGuide.value) {
-            setTimeout(async () => {
-                try {
-                    await Promise.all([fetchSites(), fetchServers()])
-                } catch (error) {
-                    console.error('加载数据失败:', error)
-                } finally {
-                    loading.value = false
-                }
-            }, 1000)
-        }
-
-        return {
-            activeTab,
-            sites,
-            servers,
-            loading,
-            showGuide,
-            handleGuideComplete,
-            clientInstallCommand,
-            copyInstallCommand,
-            addServer,
-            deleteServer
-        }
     }
-})
+}
+
+// 创建Vue实例
+const vueApp = Vue.createApp(app)
 
 // 注册组件
-app.component('Guide', Guide)
+vueApp.component('Guide', Guide)
 
 // 挂载应用
-app.mount('#app') 
+vueApp.mount('#app') 
