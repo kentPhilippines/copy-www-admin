@@ -131,6 +131,14 @@ for dir in frontend/{css,css/components,js,js/utils,js/api,js/components/{sites,
     fi
 done
 
+# 复制默认图标（如果不存在）
+if [ ! -f "frontend/static/favicon.ico" ]; then
+    # 可以使用一个默认的图标文件
+    cp resources/favicon.ico frontend/static/favicon.ico || {
+        echo "警告: 未找到默认图标文件"
+    }
+fi
+
 # 确保目录权限正确
 chmod -R 755 frontend
 

@@ -28,10 +28,14 @@ app.mount("/css", StaticFiles(directory="frontend/css"), name="css")
 app.mount("/static", StaticFiles(directory="frontend/static"), name="static")
 
 # 根路由返回前端首页
-@app.get("/", response_class=HTMLResponse)
+@app.get("/")
 async def read_root():
-    with open("frontend/index.html", "r", encoding="utf-8") as f:
-        return f.read()
+    return FileResponse("frontend/index.html")
+
+# 添加favicon.ico路由
+@app.get("/favicon.ico")
+async def favicon():
+    return FileResponse("frontend/static/favicon.ico")
 
 # 数据库连接
 def get_db():
