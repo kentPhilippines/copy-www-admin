@@ -11,6 +11,9 @@ from typing import Optional, Dict, Any, List
 import shutil
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
+import socket
+import platform
+import getpass
 
 app = FastAPI()
 
@@ -251,10 +254,85 @@ def update_servers_table():
     except:
         pass  # 列已存在
 
-# 启动时更新数据库结构
+# 获取本机信息
+def get_local_machine_info():
+    try:
+        hostname = socket.gethostname()
+        ip = socket.gethostbyname(hostname)
+        system = platform.system()
+        username = getpass.getuser()
+        
+        return {
+            "name": hostname,
+            "ip": ip,
+            "username": username,
+            "auth_type": "password",
+            "system_info": {
+                "os": system,
+                "version": platform.version(),
+                "machine": platform.machine()
+            }
+        }
+    except Exception as e:
+        print(f"获取本机信息失败: {str(e)}")
+        return None
+
+# 初始化数据库
+def init_database():
+    db = get_db()
+    cursor = db.cursor()
+    
+    # 检查是否已有服务器数据
+    servers = cursor.execute("SELECT COUNT(*) FROM servers").fetchone()[0]
+    
+    if servers == 0:
+        # 获取本机信息并添加为第一个服务器
+        local_info = get_local_machine_info()
+        if local_info:
+            try:
+                cursor.execute("""
+                    INSERT INTO servers (name, ip, username, auth_type, status)
+                    VALUES (?, ?, ?, ?, 'active')
+                """, (
+                    local_info["name"],
+                    local_info["ip"],
+                    local_info["username"],
+                    local_info["auth_type"]
+                ))
+                
+                # 添加系统信息到监控数据
+                cursor.execute("""
+                    INSERT INTO server_metrics (
+                        server_id, cpu_usage, memory_usage, disk_usage,
+                        network_in, network_out, load_average, process_count, uptime
+                    ) VALUES (?, 0, 0, 0, 0, 0, '0.0, 0.0, 0.0', 0, 0)
+                """, (cursor.lastrowid,))
+                
+                db.commit()
+                print("已添加本机作为初始服务器")
+            except Exception as e:
+                print(f"添加本机信息失败: {str(e)}")
+    
+    # 检查是否已有示例站点
+    sites = cursor.execute("SELECT COUNT(*) FROM sites").fetchone()[0]
+    
+    if sites == 0:
+        # 添加示例站点
+        try:
+            cursor.execute("""
+                INSERT INTO sites (domain, status, ssl_enabled)
+                VALUES (?, 'active', 0)
+            """, (socket.gethostname(),))
+            db.commit()
+            print("已添加示例站点")
+        except Exception as e:
+            print(f"添加示例站点失败: {str(e)}")
+
+# 在启动事件中调用初始化函数
 @app.on_event("startup")
 async def startup_event():
     update_servers_table()
+    init_database()
 
 # 监控数据模型
 class Metrics(BaseModel):
