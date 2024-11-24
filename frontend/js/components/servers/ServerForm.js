@@ -1,4 +1,4 @@
-export const ServerForm = {
+const ServerForm = {
     template: `
         <div class="modal" v-if="visible">
             <div class="modal-overlay" @click="handleClose"></div>
@@ -199,4 +199,6 @@ export const ServerForm = {
             }, 3000)
         }
     }
-} 
+};
+
+window.ServerForm = ServerForm; 

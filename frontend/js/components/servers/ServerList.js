@@ -1,4 +1,4 @@
-export const ServerList = {
+const ServerList = {
     props: {
         servers: {
             type: Array,
@@ -69,4 +69,6 @@ export const ServerList = {
             }
         }
     }
-} 
+};
+
+window.ServerList = ServerList; 

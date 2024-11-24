@@ -1,5 +1,3 @@
-import Guide from './components/onboarding/Guide.js';
-
 // 创建应用实例
 const app = {
     data() {
@@ -143,4 +141,14 @@ const app = {
 
 // 创建Vue实例并挂载
 const vueApp = Vue.createApp(app)
+
+// 注册所有组件
+vueApp.component('Guide', window.Guide)
+vueApp.component('SiteList', window.SiteList)
+vueApp.component('SiteForm', window.SiteForm)
+vueApp.component('ServerList', window.ServerList)
+vueApp.component('ServerForm', window.ServerForm)
+vueApp.component('CommandExecutor', window.CommandExecutor)
+
+// 挂载应用
 vueApp.mount('#app') 

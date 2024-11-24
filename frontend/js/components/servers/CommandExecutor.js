@@ -1,4 +1,4 @@
-export const CommandExecutor = {
+const CommandExecutor = {
     props: {
         visible: {
             type: Boolean,
@@ -166,4 +166,6 @@ export const CommandExecutor = {
             }
         }
     }
-} 
+};
+
+window.CommandExecutor = CommandExecutor; 

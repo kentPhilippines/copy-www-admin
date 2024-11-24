@@ -1,4 +1,4 @@
-export const SiteList = {
+const SiteList = {
     props: {
         sites: {
             type: Array,
@@ -63,4 +63,6 @@ export const SiteList = {
             }
         }
     }
-} 
+};
+
+window.SiteList = SiteList; 

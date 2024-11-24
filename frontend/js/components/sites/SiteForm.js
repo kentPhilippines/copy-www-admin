@@ -1,4 +1,4 @@
-export const SiteForm = {
+const SiteForm = {
     props: {
         visible: {
             type: Boolean,
@@ -251,4 +251,6 @@ export const SiteForm = {
             }, 3000)
         }
     }
-} 
+};
+
+window.SiteForm = SiteForm; 

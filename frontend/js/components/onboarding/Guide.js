@@ -131,7 +131,7 @@ const Guide = {
             this.$emit('complete')
         }
     }
-}
+};
 
-// 导出组件而不是直接注册
-export default Guide; 
+// 挂载到全局
+window.Guide = Guide; 
