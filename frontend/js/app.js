@@ -132,22 +132,15 @@ const app = {
         if (this.showGuide) {
             const guideElement = document.getElementById('guide')
             if (guideElement) {
-                const guide = new Guide({
+                new Guide({
                     target: guideElement,
-                    props: {
-                        onComplete: this.handleGuideComplete
-                    }
+                    onComplete: this.handleGuideComplete
                 })
             }
         }
     }
 }
 
-// 创建Vue实例
+// 创建Vue实例并挂载
 const vueApp = Vue.createApp(app)
-
-// 注册组件
-vueApp.component('Guide', Guide)
-
-// 挂载应用
 vueApp.mount('#app') 
