@@ -1,0 +1,15 @@
+[Unit]
+Description=Server Monitor Client
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/path/to/monitor-client
+Environment=PATH=/path/to/monitor-client/venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+ExecStart=/path/to/monitor-client/venv/bin/python monitor.py
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target 

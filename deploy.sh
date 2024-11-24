@@ -245,6 +245,51 @@ EOL
 chmod +x stop.sh 
 chmod +x uninstall.sh
 
+# 在检查项目结构部分添加
+echo "13. 准备客户端文件..."
+if [ ! -d "client" ]; then
+    mkdir -p client
+fi
+
+# 复制客户端文件
+cp -r client/* client/
+chmod +x client/monitor.py
+
+# 创建客户端 requirements.txt
+cat > client/requirements.txt << 'EOL'
+psutil==5.8.0
+websockets==9.1
+python-dotenv==0.19.0
+EOL
+
+# 创建客户端配置文件模板
+cat > client/config.json.template << 'EOL'
+{
+    "server_url": "ws://SERVER_IP:9001/ws",
+    "server_id": "SERVER_ID",
+    "interval": 60
+}
+EOL
+
+# 创建服务文件模板
+cat > client/monitor.service.template << 'EOL'
+[Unit]
+Description=Server Monitor Client
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/monitor-client
+Environment=PATH=/opt/monitor-client/venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+ExecStart=/opt/monitor-client/venv/bin/python monitor.py
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
+EOL
+
 echo "=== 部署完成 ==="
 echo "使用说明:"
 echo "1. 启动服务: ./start.sh"

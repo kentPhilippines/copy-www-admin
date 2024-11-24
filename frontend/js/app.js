@@ -49,13 +49,15 @@ const app = createApp({
 
         const showGuide = ref(!localStorage.getItem('guideCompleted'))
         const clientInstallCommand = ref(`
-# 下载并安装监控客户端
-git clone https://github.com/your-repo/monitor-client.git
-cd monitor-client
-python3 -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
-python monitor.py --server-url=http://your-server:9001
+# 客户端安装说明
+# -------------------
+# 注意：客户端安装程序正在完善中
+# 请等待后续更新...
+#
+# 临时提示：
+# 1. 服务器ID: [添加服务器后在此显示]
+# 2. 服务器地址: ${window.location.hostname}:9001
+# 3. 监控间隔: 60秒
 `)
 
         // 获取服务器列表
