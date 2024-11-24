@@ -2,6 +2,7 @@ import Guide from './components/onboarding/Guide.js';
 import { SitesAPI } from './api/sites.js';
 
 const { createApp, ref, watch } = Vue;
+const { ElMessage } = ElementPlus;
 
 // 创建应用实例
 const app = createApp({
@@ -54,7 +55,7 @@ const app = createApp({
             try {
                 servers.value = await API.getServers()
             } catch (error) {
-                ElMessage.error('获取服务器列表失败')
+                ElementPlus.ElMessage.error('获取服务器列表失败')
             } finally {
                 serverTableLoading.value = false
             }
@@ -66,9 +67,9 @@ const app = createApp({
                 await API.createServer(newServer.value)
                 serverDialogVisible.value = false
                 await fetchServers()
-                ElMessage.success('服务器添加成功')
+                ElementPlus.ElMessage.success('服务器添加成功')
             } catch (error) {
-                ElMessage.error('添加服务器失败')
+                ElementPlus.ElMessage.error('添加服务器失败')
             }
         }
 
@@ -77,9 +78,9 @@ const app = createApp({
             try {
                 await API.deleteServer(id)
                 await fetchServers()
-                ElMessage.success('服务器删除成功')
+                ElementPlus.ElMessage.success('服务器删除成功')
             } catch (error) {
-                ElMessage.error('删除服务器失败')
+                ElementPlus.ElMessage.error('删除服务器失败')
             }
         }
 
@@ -92,12 +93,12 @@ const app = createApp({
                 )
                 commandResult.value = result.result
                 if (result.status === 'success') {
-                    ElMessage.success('命令执行成功')
+                    ElementPlus.ElMessage.success('命令执行成功')
                 } else {
-                    ElMessage.error('命令执行失败')
+                    ElementPlus.ElMessage.error('命令执行失败')
                 }
             } catch (error) {
-                ElMessage.error('命令执行失败')
+                ElementPlus.ElMessage.error('命令执行失败')
             }
         }
 
@@ -106,7 +107,7 @@ const app = createApp({
             try {
                 commandLogs.value = await API.getCommandLogs(serverId)
             } catch (error) {
-                ElMessage.error('获取命令日志失败')
+                ElementPlus.ElMessage.error('获取命令日志失败')
             }
         }
 
@@ -213,7 +214,7 @@ const app = createApp({
             try {
                 sites.value = await SitesAPI.list();
             } catch (error) {
-                ElMessage.error('获取站点列表失败');
+                ElementPlus.ElMessage.error('获取站点列表失败');
             }
         };
 
@@ -254,7 +255,11 @@ const app = createApp({
 
 // 注册组件
 app.component('Guide', Guide);
-app.component('Loading', ElementPlusIconsVue.Loading);
+
+// 注册Element Plus图标
+for (const [key, component] of Object.entries(ElementPlusIconsVue)) {
+    app.component(key, component)
+}
 
 // 使用Element Plus
 app.use(ElementPlus);
