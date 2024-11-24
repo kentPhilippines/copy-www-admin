@@ -48,6 +48,15 @@ const app = createApp({
         })
 
         const showGuide = ref(!localStorage.getItem('guideCompleted'))
+        const clientInstallCommand = ref(`
+# 下载并安装监控客户端
+git clone https://github.com/your-repo/monitor-client.git
+cd monitor-client
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+python monitor.py --server-url=http://your-server:9001
+`)
 
         // 获取服务器列表
         const fetchServers = async () => {
@@ -196,17 +205,39 @@ const app = createApp({
             return types[severity] || 'info'
         }
 
-        // 初始化加载
+        // 添加复制命令方法
+        const copyInstallCommand = () => {
+            navigator.clipboard.writeText(clientInstallCommand.value.trim())
+            ElementPlus.ElMessage.success('安装命令已复制到剪贴板')
+        }
+
+        // 修改初始化加载逻辑
         setTimeout(async () => {
-            await Promise.all([fetchSites(), fetchServers()])
-            loading.value = false
+            try {
+                if (!showGuide.value) {
+                    await Promise.all([fetchSites(), fetchServers()])
+                }
+            } catch (error) {
+                console.error('加载数据失败:', error)
+            } finally {
+                loading.value = false
+            }
         }, 1500)
 
+        // 修改引导完成处理方法
         const handleGuideComplete = () => {
             showGuide.value = false
+            loading.value = true
             // 加载系统数据
-            fetchServers()
-            fetchSites()
+            setTimeout(async () => {
+                try {
+                    await Promise.all([fetchSites(), fetchServers()])
+                } catch (error) {
+                    console.error('加载数据失败:', error)
+                } finally {
+                    loading.value = false
+                }
+            }, 500)
         }
 
         // 添加fetchSites函数
@@ -248,7 +279,9 @@ const app = createApp({
             getLogSeverityType,
             showGuide,
             handleGuideComplete,
-            fetchSites
+            fetchSites,
+            clientInstallCommand,
+            copyInstallCommand
         }
     }
 })
