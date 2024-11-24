@@ -1,8 +1,6 @@
 import Guide from './components/onboarding/Guide.js';
-import { SitesAPI } from './api/sites.js';
 
 const { createApp, ref, watch } = Vue;
-const { ElMessage } = ElementPlus;
 
 // 创建应用实例
 const app = createApp({
@@ -11,43 +9,8 @@ const app = createApp({
         const sites = ref([])
         const servers = ref([])
         const loading = ref(true)
-        const tableLoading = ref(false)
-        const serverTableLoading = ref(false)
-        const serverDialogVisible = ref(false)
-        const commandDialogVisible = ref(false)
-        const logsDialogVisible = ref(false)
-        const commandResult = ref('')
-        const commandLogs = ref([])
-        const monitorDialogVisible = ref(false)
-        const currentMetrics = ref({
-            cpu_usage: 0,
-            memory_usage: 0,
-            disk_usage: 0,
-            load_average: '0, 0, 0',
-            network_in: 0,
-            network_out: 0,
-            process_count: 0,
-            uptime: 0
-        })
-        const serverServices = ref([])
-        const systemLogs = ref([])
-        let monitorTimer = null
-
-        const newServer = ref({
-            name: '',
-            ip: '',
-            username: '',
-            authType: 'password',
-            password: '',
-            keyPath: ''
-        })
-
-        const commandForm = ref({
-            command: '',
-            serverId: null
-        })
-
         const showGuide = ref(!localStorage.getItem('guideCompleted'))
+        
         const clientInstallCommand = ref(`
 # 客户端安装说明
 # -------------------
@@ -60,177 +23,91 @@ const app = createApp({
 # 3. 监控间隔: 60秒
 `)
 
+        // 复制命令到剪贴板
+        const copyInstallCommand = () => {
+            navigator.clipboard.writeText(clientInstallCommand.value.trim())
+            showMessage('安装命令已复制到剪贴板', 'success')
+        }
+
+        // 显示消息提示
+        const showMessage = (message, type = 'info') => {
+            const messageDiv = document.createElement('div')
+            messageDiv.className = `message message-${type}`
+            messageDiv.textContent = message
+            document.body.appendChild(messageDiv)
+            
+            setTimeout(() => {
+                messageDiv.classList.add('message-fade-out')
+                setTimeout(() => {
+                    document.body.removeChild(messageDiv)
+                }, 300)
+            }, 3000)
+        }
+
+        // 获取站点列表
+        const fetchSites = async () => {
+            try {
+                sites.value = await fetch('/api/sites').then(r => r.json())
+            } catch (error) {
+                showMessage('获取站点列表失败', 'error')
+            }
+        }
+
         // 获取服务器列表
         const fetchServers = async () => {
-            serverTableLoading.value = true
             try {
-                servers.value = await API.getServers()
+                servers.value = await fetch('/api/servers').then(r => r.json())
             } catch (error) {
-                ElementPlus.ElMessage.error('获取服务器列表失败')
-            } finally {
-                serverTableLoading.value = false
+                showMessage('获取服务器列表失败', 'error')
             }
         }
 
         // 添加服务器
-        const addServer = async () => {
+        const addServer = async (serverData) => {
             try {
-                await API.createServer(newServer.value)
-                serverDialogVisible.value = false
-                await fetchServers()
-                ElementPlus.ElMessage.success('服务器添加成功')
+                const response = await fetch('/api/servers', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(serverData)
+                })
+                const result = await response.json()
+                if (response.ok) {
+                    showMessage('服务器添加成功', 'success')
+                    await fetchServers()
+                } else {
+                    throw new Error(result.detail || '添加失败')
+                }
             } catch (error) {
-                ElementPlus.ElMessage.error('添加服务器失败')
+                showMessage(error.message, 'error')
             }
         }
 
         // 删除服务器
-        const deleteServer = async (id) => {
-            try {
-                await API.deleteServer(id)
-                await fetchServers()
-                ElementPlus.ElMessage.success('服务器删除成功')
-            } catch (error) {
-                ElementPlus.ElMessage.error('删除服务器失败')
+        const deleteServer = async (serverId) => {
+            if (!confirm('确定要删除这个服务器吗？')) {
+                return
             }
-        }
-
-        // 执行命令
-        const executeCommand = async () => {
             try {
-                const result = await API.executeCommand(
-                    commandForm.value.serverId,
-                    commandForm.value.command
-                )
-                commandResult.value = result.result
-                if (result.status === 'success') {
-                    ElementPlus.ElMessage.success('命令执行成功')
+                const response = await fetch(`/api/servers/${serverId}`, {
+                    method: 'DELETE'
+                })
+                if (response.ok) {
+                    showMessage('服务器删除成功', 'success')
+                    await fetchServers()
                 } else {
-                    ElementPlus.ElMessage.error('命令执行失败')
+                    throw new Error('删除失败')
                 }
             } catch (error) {
-                ElementPlus.ElMessage.error('命令执行失败')
+                showMessage(error.message, 'error')
             }
         }
 
-        // 获取命令日志
-        const fetchCommandLogs = async (serverId) => {
-            try {
-                commandLogs.value = await API.getCommandLogs(serverId)
-            } catch (error) {
-                ElementPlus.ElMessage.error('获取命令日志失败')
-            }
-        }
-
-        // 显示命令对话框
-        const showCommandDialog = (server) => {
-            commandForm.value.serverId = server.id
-            commandForm.value.command = ''
-            commandResult.value = ''
-            commandDialogVisible.value = true
-        }
-
-        // 显示日志对话框
-        const showLogsDialog = async (server) => {
-            await fetchCommandLogs(server.id)
-            logsDialogVisible.value = true
-        }
-
-        // SSH密钥上传前的验证
-        const beforeKeyUpload = (file) => {
-            const isValidSize = file.size / 1024 / 1024 < 1
-            if (!isValidSize) {
-                ElMessage.error('SSH密钥文件大小不能超过1MB!')
-            }
-            return isValidSize
-        }
-
-        // SSH密钥上传成功的处理
-        const handleKeyUploadSuccess = (response) => {
-            newServer.value.keyPath = response.path
-            ElMessage.success('SSH密钥上传成功')
-        }
-
-        // 获取监控数据的方法
-        const fetchMonitorData = async (serverId) => {
-            try {
-                const [metrics, services, logs] = await Promise.all([
-                    API.getServerMetrics(serverId),
-                    API.getServerServices(serverId),
-                    API.getServerLogs(serverId)
-                ])
-                
-                if (metrics.length > 0) {
-                    currentMetrics.value = metrics[0]  // 最新的指标
-                }
-                serverServices.value = services
-                systemLogs.value = logs
-            } catch (error) {
-                ElMessage.error('获取监控数据失败')
-            }
-        }
-
-        // 显示监控对话框
-        const showMonitorDialog = async (server) => {
-            monitorDialogVisible.value = true
-            await fetchMonitorData(server.id)
-            
-            // 设置定时刷新
-            monitorTimer = setInterval(() => {
-                fetchMonitorData(server.id)
-            }, 10000)  // 每10秒刷新一次
-        }
-
-        // 监控对话框关闭时清理定时器
-        watch(monitorDialogVisible, (newVal) => {
-            if (!newVal && monitorTimer) {
-                clearInterval(monitorTimer)
-                monitorTimer = null
-            }
-        })
-
-        // 获取进度条颜色
-        const getProgressColor = (percentage) => {
-            if (percentage < 70) return '#67C23A'
-            if (percentage < 90) return '#E6A23C'
-            return '#F56C6C'
-        }
-
-        // 获取日志级别样式
-        const getLogSeverityType = (severity) => {
-            const types = {
-                'info': 'info',
-                'warning': 'warning',
-                'error': 'danger',
-                'critical': 'danger'
-            }
-            return types[severity] || 'info'
-        }
-
-        // 添加复制命令方法
-        const copyInstallCommand = () => {
-            navigator.clipboard.writeText(clientInstallCommand.value.trim())
-            ElementPlus.ElMessage.success('安装命令已复制到剪贴板')
-        }
-
-        // 修改初始化加载逻辑
-        setTimeout(async () => {
-            try {
-                if (!showGuide.value) {
-                    await Promise.all([fetchSites(), fetchServers()])
-                }
-            } catch (error) {
-                console.error('加载数据失败:', error)
-            } finally {
-                loading.value = false
-            }
-        }, 1500)
-
-        // 修改引导完成处理方法
+        // 引导完成处理
         const handleGuideComplete = () => {
             showGuide.value = false
             loading.value = true
-            // 加载系统数据
             setTimeout(async () => {
                 try {
                     await Promise.all([fetchSites(), fetchServers()])
@@ -242,62 +119,36 @@ const app = createApp({
             }, 500)
         }
 
-        // 添加fetchSites函数
-        const fetchSites = async () => {
-            try {
-                sites.value = await SitesAPI.list();
-            } catch (error) {
-                ElementPlus.ElMessage.error('获取站点列表失败');
-            }
-        };
+        // 初始化加载
+        if (!showGuide.value) {
+            setTimeout(async () => {
+                try {
+                    await Promise.all([fetchSites(), fetchServers()])
+                } catch (error) {
+                    console.error('加载数据失败:', error)
+                } finally {
+                    loading.value = false
+                }
+            }, 1000)
+        }
 
         return {
             activeTab,
             sites,
             servers,
             loading,
-            tableLoading,
-            serverTableLoading,
-            serverDialogVisible,
-            commandDialogVisible,
-            logsDialogVisible,
-            newServer,
-            commandForm,
-            commandResult,
-            commandLogs,
-            addServer,
-            deleteServer,
-            executeCommand,
-            showCommandDialog,
-            showLogsDialog,
-            beforeKeyUpload,
-            handleKeyUploadSuccess,
-            monitorDialogVisible,
-            currentMetrics,
-            serverServices,
-            systemLogs,
-            showMonitorDialog,
-            getProgressColor,
-            getLogSeverityType,
             showGuide,
             handleGuideComplete,
-            fetchSites,
             clientInstallCommand,
-            copyInstallCommand
+            copyInstallCommand,
+            addServer,
+            deleteServer
         }
     }
 })
 
 // 注册组件
-app.component('Guide', Guide);
-
-// 注册Element Plus图标
-for (const [key, component] of Object.entries(ElementPlusIconsVue)) {
-    app.component(key, component)
-}
-
-// 使用Element Plus
-app.use(ElementPlus);
+app.component('Guide', Guide)
 
 // 挂载应用
-app.mount('#app'); 
+app.mount('#app') 

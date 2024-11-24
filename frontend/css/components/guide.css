@@ -58,4 +58,85 @@
     img {
         max-width: 300px;
     }
+}
+
+.guide-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(255, 255, 255, 0.95);
+    z-index: 9999;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.guide-container {
+    background-color: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+    width: 80%;
+    max-width: 800px;
+    padding: 30px;
+}
+
+.guide-steps {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 40px;
+}
+
+.step-item {
+    flex: 1;
+    text-align: center;
+    padding: 10px;
+    border-bottom: 2px solid var(--border-color);
+    color: var(--text-color);
+    position: relative;
+}
+
+.step-item.active {
+    color: var(--primary-color);
+    border-bottom-color: var(--primary-color);
+}
+
+.step-item.completed {
+    color: var(--success-color);
+    border-bottom-color: var(--success-color);
+}
+
+.guide-content {
+    min-height: 300px;
+    padding: 20px 0;
+}
+
+.step-content {
+    text-align: center;
+}
+
+.step-content h2 {
+    color: var(--primary-color);
+    margin-bottom: 20px;
+}
+
+.step-content ul {
+    text-align: left;
+    margin: 20px auto;
+    max-width: 400px;
+}
+
+.step-content li {
+    margin: 10px 0;
+    color: var(--text-color);
+}
+
+.guide-footer {
+    margin-top: 30px;
+    text-align: right;
+}
+
+.guide-footer button {
+    margin-left: 10px;
 } 

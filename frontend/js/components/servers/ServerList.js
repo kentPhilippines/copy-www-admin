@@ -12,69 +12,61 @@ export const ServerList = {
     template: `
         <div class="server-list">
             <div class="header">
-                <el-button type="primary" @click="$emit('add')">添加服务器</el-button>
+                <button class="btn btn-primary" @click="$emit('add')">添加服务器</button>
             </div>
-            <el-table :data="servers" v-loading="loading" stripe>
-                <el-table-column prop="name" label="服务器名称"></el-table-column>
-                <el-table-column prop="ip" label="IP地址"></el-table-column>
-                <el-table-column prop="username" label="用户名"></el-table-column>
-                <el-table-column prop="status" label="状态">
-                    <template #default="scope">
-                        <el-tag :type="getStatusType(scope.row.status)">
-                            {{ scope.row.status }}
-                        </el-tag>
-                    </template>
-                </el-table-column>
-                <el-table-column label="操作" width="400">
-                    <template #default="scope">
-                        <el-button-group>
-                            <el-button 
-                                type="primary" 
-                                size="small" 
-                                @click="$emit('monitor', scope.row)">
-                                监控
-                            </el-button>
-                            <el-button 
-                                type="success" 
-                                size="small" 
-                                @click="$emit('command', scope.row)">
-                                执行命令
-                            </el-button>
-                            <el-button 
-                                type="info" 
-                                size="small" 
-                                @click="$emit('logs', scope.row)">
-                                查看日志
-                            </el-button>
-                            <el-button 
-                                type="danger" 
-                                size="small" 
-                                @click="handleDelete(scope.row)">
-                                删除
-                            </el-button>
-                        </el-button-group>
-                    </template>
-                </el-table-column>
-            </el-table>
+            <div v-if="loading" class="loading-container">
+                <div class="loading-spinner"></div>
+            </div>
+            <table v-else class="data-table">
+                <thead>
+                    <tr>
+                        <th>服务器名称</th>
+                        <th>IP地址</th>
+                        <th>用户名</th>
+                        <th>状态</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr v-for="server in servers" :key="server.id">
+                        <td>{{server.name}}</td>
+                        <td>{{server.ip}}</td>
+                        <td>{{server.username}}</td>
+                        <td>
+                            <span class="status-tag" :class="server.status">
+                                {{server.status || '未知'}}
+                            </span>
+                        </td>
+                        <td>
+                            <div class="btn-group">
+                                <button 
+                                    class="btn btn-small btn-primary" 
+                                    @click="$emit('monitor', server)"
+                                >监控</button>
+                                <button 
+                                    class="btn btn-small btn-success" 
+                                    @click="$emit('command', server)"
+                                >执行命令</button>
+                                <button 
+                                    class="btn btn-small btn-info" 
+                                    @click="$emit('logs', server)"
+                                >查看日志</button>
+                                <button 
+                                    class="btn btn-small btn-danger" 
+                                    @click="handleDelete(server)"
+                                >删除</button>
+                            </div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
         </div>
     `,
     methods: {
-        getStatusType(status) {
-            const types = {
-                'active': 'success',
-                'inactive': 'info',
-                'error': 'danger'
-            }
-            return types[status] || 'info'
-        },
         handleDelete(server) {
-            this.$confirm('确认删除该服务器吗？', '提示', {
-                confirmButtonText: '确定',
-                cancelButtonText: '取消',
-                type: 'warning'
-            }).then(() => {
+            if (confirm('确认删除该服务器吗？')) {
                 this.$emit('delete', server)
-            }).catch(() => {})
+            }
         }
     }
 } 

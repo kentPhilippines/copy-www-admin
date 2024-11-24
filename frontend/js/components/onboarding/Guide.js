@@ -1,22 +1,19 @@
 const Guide = {
     name: 'Guide',
     template: `
-        <el-dialog
-            v-model="visible"
-            :show-close="false"
-            :close-on-click-modal="false"
-            :close-on-press-escape="false"
-            width="60%"
-            class="guide-dialog"
-        >
+        <div class="guide-overlay" v-if="visible">
             <div class="guide-container">
                 <!-- 步骤指示器 -->
-                <el-steps :active="currentStep" finish-status="success" class="guide-steps">
-                    <el-step title="欢迎" description="系统介绍"></el-step>
-                    <el-step title="站点管理" description="站点配置说明"></el-step>
-                    <el-step title="服务器管理" description="服务器操作说明"></el-step>
-                    <el-step title="监控功能" description="监控功能介绍"></el-step>
-                </el-steps>
+                <div class="guide-steps">
+                    <div 
+                        v-for="(step, index) in steps" 
+                        :key="index"
+                        class="step-item"
+                        :class="{ active: currentStep === index, completed: currentStep > index }"
+                    >
+                        {{ step.title }}
+                    </div>
+                </div>
 
                 <!-- 步骤内容 -->
                 <div class="guide-content">
@@ -71,27 +68,45 @@ const Guide = {
 
                 <!-- 操作按钮 -->
                 <div class="guide-footer">
-                    <el-button @click="skipGuide" v-if="currentStep === 0">跳过引导</el-button>
-                    <el-button @click="prevStep" v-if="currentStep > 0">上一步</el-button>
-                    <el-button 
-                        type="primary" 
+                    <button 
+                        class="btn btn-default" 
+                        @click="skipGuide" 
+                        v-if="currentStep === 0"
+                    >
+                        跳过引导
+                    </button>
+                    <button 
+                        class="btn btn-default" 
+                        @click="prevStep" 
+                        v-if="currentStep > 0"
+                    >
+                        上一步
+                    </button>
+                    <button 
+                        class="btn btn-primary" 
                         @click="nextStep"
                     >
-                        {{ currentStep === 3 ? '开始使用' : '下一步' }}
-                    </el-button>
+                        {{ currentStep === steps.length - 1 ? '开始使用' : '下一步' }}
+                    </button>
                 </div>
             </div>
-        </el-dialog>
+        </div>
     `,
     data() {
         return {
             visible: true,
-            currentStep: 0
+            currentStep: 0,
+            steps: [
+                { title: '欢迎', description: '系统介绍' },
+                { title: '站点管理', description: '站点配置说明' },
+                { title: '服务器管理', description: '服务器操作说明' },
+                { title: '监控功能', description: '监控功能介绍' }
+            ]
         }
     },
     methods: {
         nextStep() {
-            if (this.currentStep < 3) {
+            if (this.currentStep < this.steps.length - 1) {
                 this.currentStep++
             } else {
                 this.completeGuide()

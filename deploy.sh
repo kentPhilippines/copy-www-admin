@@ -146,6 +146,12 @@ chmod 644 frontend/static/css/theme.css
 chmod 644 frontend/static/images/*.svg
 chmod 644 frontend/static/videos/README.md
 
+
+# 给 /start.sh 权限
+chmod 755 start.sh
+chmod 755 stop.sh
+chmod 755 uninstall.sh
+
 echo "=== 部署完成 ==="
 echo "使用说明:"
 echo "1. 启动服务: ./start.sh"

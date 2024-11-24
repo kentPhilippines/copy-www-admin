@@ -18,68 +18,76 @@ export const ServiceList = {
     beforeUnmount() {
         wsManager.removeListener(this.serverId, this.handleWebSocketData)
     },
+    template: `
+        <div class="service-list">
+            <div class="card">
+                <div class="card-header">
+                    <h3>运行中的服务</h3>
+                    <button class="btn btn-primary btn-small" @click="refreshServices">
+                        刷新
+                    </button>
+                </div>
+                <div class="card-body">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>服务名称</th>
+                                <th>端口</th>
+                                <th>进程ID</th>
+                                <th>状态</th>
+                                <th>CPU使用率</th>
+                                <th>内存使用率</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr v-for="service in services" :key="service.pid">
+                                <td>{{service.service_name}}</td>
+                                <td>{{service.port}}</td>
+                                <td>{{service.pid}}</td>
+                                <td>
+                                    <span class="status-tag" :class="service.status">
+                                        {{service.status}}
+                                    </span>
+                                </td>
+                                <td>
+                                    <div class="progress-bar">
+                                        <div class="progress-value" 
+                                            :style="{
+                                                width: service.cpu_usage + '%',
+                                                backgroundColor: getResourceColor(service.cpu_usage)
+                                            }"
+                                        ></div>
+                                        <span class="progress-label">{{service.cpu_usage}}%</span>
+                                    </div>
+                                </td>
+                                <td>
+                                    <div class="progress-bar">
+                                        <div class="progress-value" 
+                                            :style="{
+                                                width: service.memory_usage + '%',
+                                                backgroundColor: getResourceColor(service.memory_usage)
+                                            }"
+                                        ></div>
+                                        <span class="progress-label">{{service.memory_usage}}%</span>
+                                    </div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    `,
     methods: {
         handleWebSocketData(data) {
             if (data.type === 'services') {
                 this.services = data.data.services
             }
-        }
-    },
-    template: `
-        <div class="service-list">
-            <el-card class="monitor-section">
-                <template #header>
-                    <div class="card-header">
-                        <span>运行中的服务</span>
-                        <el-button type="primary" size="small" @click="refreshServices">
-                            刷新
-                        </el-button>
-                    </div>
-                </template>
-                <el-table :data="services" stripe>
-                    <el-table-column prop="service_name" label="服务名称"></el-table-column>
-                    <el-table-column prop="port" label="端口"></el-table-column>
-                    <el-table-column prop="pid" label="进程ID"></el-table-column>
-                    <el-table-column prop="status" label="状态">
-                        <template #default="scope">
-                            <el-tag :type="getStatusType(scope.row.status)">
-                                {{ scope.row.status }}
-                            </el-tag>
-                        </template>
-                    </el-table-column>
-                    <el-table-column prop="cpu_usage" label="CPU使用率">
-                        <template #default="scope">
-                            <el-progress 
-                                :percentage="Number(scope.row.cpu_usage).toFixed(1)"
-                                :status="getCpuStatus(scope.row.cpu_usage)">
-                            </el-progress>
-                        </template>
-                    </el-table-column>
-                    <el-table-column prop="memory_usage" label="内存使用率">
-                        <template #default="scope">
-                            <el-progress 
-                                :percentage="Number(scope.row.memory_usage).toFixed(1)"
-                                :status="getMemoryStatus(scope.row.memory_usage)">
-                            </el-progress>
-                        </template>
-                    </el-table-column>
-                </el-table>
-            </el-card>
-        </div>
-    `,
-    methods: {
-        getStatusType(status) {
-            return status === 'running' ? 'success' : 'danger'
         },
-        getCpuStatus(usage) {
-            if (usage > 90) return 'exception'
-            if (usage > 70) return 'warning'
-            return 'success'
-        },
-        getMemoryStatus(usage) {
-            if (usage > 90) return 'exception'
-            if (usage > 70) return 'warning'
-            return 'success'
+        getResourceColor(usage) {
+            if (usage > 90) return '#F56C6C'  // 红色
+            if (usage > 70) return '#E6A23C'  // 黄色
+            return '#67C23A'  // 绿色
         },
         refreshServices() {
             this.$emit('refresh')

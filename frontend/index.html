@@ -3,8 +3,6 @@
 <head>
     <meta charset="UTF-8">
     <title>站点管理系统</title>
-    <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
-    <link rel="stylesheet" href="https://unpkg.com/element-plus/dist/index.css">
     <link rel="stylesheet" href="/css/style.css">
     <link rel="stylesheet" href="/css/components/guide.css">
 </head>
@@ -13,88 +11,115 @@
         <Guide v-if="showGuide" @complete="handleGuideComplete" />
 
         <div v-if="loading" class="loading-container">
-            <el-icon class="is-loading" :size="64" color="#409EFF">
-                <Loading />
-            </el-icon>
+            <div class="loading-spinner"></div>
             <div class="loading-text">系统加载中...</div>
         </div>
 
         <div v-else class="container">
-            <el-tabs v-model="activeTab">
-                <el-tab-pane label="站点管理" name="sites">
-                    <div class="header">
-                        <el-button type="primary" @click="showAddSiteDialog">添加站点</el-button>
-                    </div>
-                    <el-table :data="sites" v-loading="tableLoading" stripe>
-                        <el-table-column prop="domain" label="域名"></el-table-column>
-                        <el-table-column prop="status" label="状态">
-                            <template #default="scope">
-                                <el-tag :type="scope.row.status === 'active' ? 'success' : 'info'">
-                                    {{scope.row.status || '未知'}}
-                                </el-tag>
-                            </template>
-                        </el-table-column>
-                        <el-table-column label="操作" width="200">
-                            <template #default="scope">
-                                <el-button-group>
-                                    <el-button type="primary" size="small">配置</el-button>
-                                    <el-button type="danger" size="small">删除</el-button>
-                                </el-button-group>
-                            </template>
-                        </el-table-column>
-                    </el-table>
-                </el-tab-pane>
+            <div class="tabs">
+                <div 
+                    class="tab-item" 
+                    :class="{ active: activeTab === 'sites' }"
+                    @click="activeTab = 'sites'"
+                >
+                    站点管理
+                </div>
+                <div 
+                    class="tab-item" 
+                    :class="{ active: activeTab === 'servers' }"
+                    @click="activeTab = 'servers'"
+                >
+                    服务器管理
+                </div>
+            </div>
 
-                <el-tab-pane label="服务器管理" name="servers">
+            <div class="tab-content">
+                <!-- 站点管理面板 -->
+                <div v-show="activeTab === 'sites'" class="tab-pane">
                     <div class="header">
-                        <el-button type="primary" @click="showAddServerDialog">添加服务器</el-button>
+                        <button class="btn btn-primary" @click="showAddSiteDialog">添加站点</button>
+                    </div>
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>域名</th>
+                                <th>状态</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr v-for="site in sites" :key="site.id">
+                                <td>{{site.domain}}</td>
+                                <td>
+                                    <span class="status-tag" :class="site.status">
+                                        {{site.status || '未知'}}
+                                    </span>
+                                </td>
+                                <td>
+                                    <div class="btn-group">
+                                        <button class="btn btn-small btn-primary">配置</button>
+                                        <button class="btn btn-small btn-danger">删除</button>
+                                    </div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- 服务器管理面板 -->
+                <div v-show="activeTab === 'servers'" class="tab-pane">
+                    <div class="header">
+                        <button class="btn btn-primary" @click="showAddServerDialog">添加服务器</button>
                     </div>
                     <div v-if="!servers.length" class="empty-state">
-                        <el-empty description="暂无服务器数据">
-                            <template #description>
-                                <p>请先添加服务器并安装监控客户端</p>
-                                <p>客户端安装命令：</p>
-                                <el-input
-                                    type="textarea"
-                                    :rows="2"
-                                    readonly
-                                    :model-value="clientInstallCommand"
-                                ></el-input>
-                                <el-button type="primary" @click="copyInstallCommand">
-                                    复制安装命令
-                                </el-button>
-                            </template>
-                        </el-empty>
+                        <div class="empty-icon">📦</div>
+                        <h3>暂无服务器数据</h3>
+                        <p>请先添加服务器并安装监控客户端</p>
+                        <div class="install-command">
+                            <p>客户端安装命令：</p>
+                            <textarea 
+                                readonly 
+                                :value="clientInstallCommand"
+                                class="command-text"
+                            ></textarea>
+                            <button class="btn btn-primary" @click="copyInstallCommand">
+                                复制安装命令
+                            </button>
+                        </div>
                     </div>
-                    <el-table v-else :data="servers" v-loading="serverTableLoading" stripe>
-                        <el-table-column prop="name" label="服务器名称"></el-table-column>
-                        <el-table-column prop="ip" label="IP地址"></el-table-column>
-                        <el-table-column prop="status" label="状态">
-                            <template #default="scope">
-                                <el-tag :type="scope.row.status === 'active' ? 'success' : 'info'">
-                                    {{scope.row.status || '未知'}}
-                                </el-tag>
-                            </template>
-                        </el-table-column>
-                        <el-table-column label="操作" width="400">
-                            <template #default="scope">
-                                <el-button-group>
-                                    <el-button type="primary" size="small">监控</el-button>
-                                    <el-button type="success" size="small">执行命令</el-button>
-                                    <el-button type="info" size="small">查看日志</el-button>
-                                    <el-button type="danger" size="small">删除</el-button>
-                                </el-button-group>
-                            </template>
-                        </el-table-column>
-                    </el-table>
-                </el-tab-pane>
-            </el-tabs>
+                    <table v-else class="data-table">
+                        <thead>
+                            <tr>
+                                <th>服务器名称</th>
+                                <th>IP地址</th>
+                                <th>状态</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr v-for="server in servers" :key="server.id">
+                                <td>{{server.name}}</td>
+                                <td>{{server.ip}}</td>
+                                <td>
+                                    <span class="status-tag" :class="server.status">
+                                        {{server.status || '未知'}}
+                                    </span>
+                                </td>
+                                <td>
+                                    <div class="btn-group">
+                                        <button class="btn btn-small btn-primary">监控</button>
+                                        <button class="btn btn-small btn-success">执行命令</button>
+                                        <button class="btn btn-small btn-info">查看日志</button>
+                                        <button class="btn btn-small btn-danger">删除</button>
+                                    </div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
         </div>
     </div>
-
-    <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
-    <script src="https://unpkg.com/element-plus"></script>
-    <script src="https://unpkg.com/@element-plus/icons-vue"></script>
 
     <script type="module" src="/js/components/onboarding/Guide.js"></script>
     <script type="module" src="/js/app.js"></script>

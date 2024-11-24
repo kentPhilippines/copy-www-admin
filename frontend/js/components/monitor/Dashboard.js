@@ -42,26 +42,23 @@ export const MonitorDashboard = {
     },
     template: `
         <div class="monitor-dashboard">
-            <el-row :gutter="20">
-                <el-col :span="6" v-for="metric in displayMetrics" :key="metric.name">
-                    <el-card class="metric-card">
-                        <template #header>
-                            <div class="card-header">
-                                <span>{{ metric.label }}</span>
-                            </div>
-                        </template>
-                        <div class="metric-value">
-                            <el-progress 
-                                v-if="metric.type === 'percentage'"
-                                type="dashboard" 
-                                :percentage="metric.value"
-                                :color="getProgressColor">
-                            </el-progress>
-                            <span v-else>{{ metric.value }}</span>
+            <div class="metrics-grid">
+                <div v-for="metric in displayMetrics" :key="metric.name" class="metric-card">
+                    <div class="metric-header">{{metric.label}}</div>
+                    <div class="metric-content">
+                        <div v-if="metric.type === 'percentage'" class="metric-gauge">
+                            <div class="gauge-value" :style="{ 
+                                transform: 'rotate(' + (metric.value * 1.8) + 'deg)',
+                                backgroundColor: getProgressColor(metric.value)
+                            }"></div>
+                            <div class="gauge-label">{{metric.value}}%</div>
                         </div>
-                    </el-card>
-                </el-col>
-            </el-row>
+                        <div v-else class="metric-text">
+                            {{metric.value}}
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
     `,
     computed: {
@@ -95,10 +92,10 @@ export const MonitorDashboard = {
         }
     },
     methods: {
-        getProgressColor(percentage) {
-            if (percentage < 70) return '#67C23A'
-            if (percentage < 90) return '#E6A23C'
-            return '#F56C6C'
+        getProgressColor(value) {
+            if (value < 70) return '#67C23A'  // 绿色
+            if (value < 90) return '#E6A23C'  // 黄色
+            return '#F56C6C'  // 红色
         }
     }
 } 

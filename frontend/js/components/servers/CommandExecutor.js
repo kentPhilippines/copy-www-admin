@@ -14,77 +14,84 @@ export const CommandExecutor = {
         }
     },
     template: `
-        <el-dialog 
-            v-model="dialogVisible"
-            :title="'执行命令 - ' + serverName"
-            width="60%"
-            @close="handleClose">
-            <div class="command-executor">
-                <el-form :model="commandForm" ref="commandForm">
-                    <el-form-item label="命令" prop="command">
-                        <el-input 
-                            v-model="commandForm.command"
-                            type="textarea"
-                            :rows="3"
-                            placeholder="请输入要执行的命令"
-                            @keyup.enter.ctrl="executeCommand">
-                        </el-input>
-                        <div class="command-tips">
-                            提示: 按Ctrl+Enter快速执行命令
-                        </div>
-                    </el-form-item>
-                </el-form>
-
-                <div v-if="commandHistory.length > 0" class="command-history">
-                    <div class="history-header">
-                        <span>命令历史</span>
-                        <el-button type="text" @click="clearHistory">清空历史</el-button>
-                    </div>
-                    <el-table :data="commandHistory" stripe size="small">
-                        <el-table-column prop="command" label="命令"></el-table-column>
-                        <el-table-column prop="status" label="状态" width="100">
-                            <template #default="scope">
-                                <el-tag :type="scope.row.status === 'success' ? 'success' : 'danger'">
-                                    {{ scope.row.status }}
-                                </el-tag>
-                            </template>
-                        </el-table-column>
-                        <el-table-column label="操作" width="100">
-                            <template #default="scope">
-                                <el-button 
-                                    type="text" 
-                                    @click="reuseCommand(scope.row.command)">
-                                    重新执行
-                                </el-button>
-                            </template>
-                        </el-table-column>
-                    </el-table>
+        <div class="modal" v-if="visible">
+            <div class="modal-overlay" @click="handleClose"></div>
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>执行命令 - {{serverName}}</h3>
+                    <button class="close-btn" @click="handleClose">&times;</button>
                 </div>
-
-                <div v-if="commandResult" class="command-result">
-                    <div class="result-header">
-                        <span>执行结果</span>
-                        <el-button type="text" @click="copyResult">复制结果</el-button>
+                <div class="modal-body">
+                    <div class="command-form">
+                        <div class="form-group">
+                            <label>命令</label>
+                            <textarea 
+                                v-model="commandForm.command"
+                                rows="3"
+                                placeholder="请输入要执行的命令"
+                                @keyup.ctrl.enter="executeCommand"
+                            ></textarea>
+                            <div class="command-tips">
+                                提示: 按Ctrl+Enter快速执行命令
+                            </div>
+                        </div>
                     </div>
-                    <pre :class="{'error': commandStatus === 'error'}">{{ commandResult }}</pre>
+
+                    <div v-if="commandHistory.length > 0" class="command-history">
+                        <div class="history-header">
+                            <h4>命令历史</h4>
+                            <button class="btn btn-text" @click="clearHistory">清空历史</button>
+                        </div>
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>命令</th>
+                                    <th>状态</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr v-for="(cmd, index) in commandHistory" :key="index">
+                                    <td>{{cmd.command}}</td>
+                                    <td>
+                                        <span class="status-tag" :class="cmd.status">
+                                            {{cmd.status}}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <button 
+                                            class="btn btn-text"
+                                            @click="reuseCommand(cmd.command)"
+                                        >重新执行</button>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div v-if="commandResult" class="command-result">
+                        <div class="result-header">
+                            <h4>执行结果</h4>
+                            <button class="btn btn-text" @click="copyResult">复制结果</button>
+                        </div>
+                        <pre :class="{'error': commandStatus === 'error'}">{{commandResult}}</pre>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-default" @click="handleClose">关闭</button>
+                    <button 
+                        class="btn btn-primary" 
+                        @click="executeCommand"
+                        :disabled="executing"
+                    >
+                        {{executing ? '执行中...' : '执行'}}
+                    </button>
                 </div>
             </div>
-            <template #footer>
-                <span class="dialog-footer">
-                    <el-button @click="handleClose">关闭</el-button>
-                    <el-button 
-                        type="primary" 
-                        @click="executeCommand" 
-                        :loading="executing">
-                        执行
-                    </el-button>
-                </span>
-            </template>
-        </el-dialog>
+        </div>
     `,
     data() {
         return {
-            dialogVisible: this.visible,
             commandForm: {
                 command: ''
             },
@@ -92,11 +99,6 @@ export const CommandExecutor = {
             commandResult: '',
             commandStatus: '',
             executing: false
-        }
-    },
-    watch: {
-        visible(newVal) {
-            this.dialogVisible = newVal
         }
     },
     methods: {

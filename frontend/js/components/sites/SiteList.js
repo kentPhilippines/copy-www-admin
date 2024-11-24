@@ -12,62 +12,55 @@ export const SiteList = {
     template: `
         <div class="site-list">
             <div class="header">
-                <el-button type="primary" @click="$emit('add')">添加站点</el-button>
+                <button class="btn btn-primary" @click="$emit('add')">添加站点</button>
             </div>
-            <el-table :data="sites" v-loading="loading" stripe>
-                <el-table-column prop="domain" label="域名"></el-table-column>
-                <el-table-column prop="status" label="状态">
-                    <template #default="scope">
-                        <el-tag :type="getStatusType(scope.row.status)">
-                            {{ scope.row.status }}
-                        </el-tag>
-                    </template>
-                </el-table-column>
-                <el-table-column label="SSL状态">
-                    <template #default="scope">
-                        <el-tag :type="scope.row.ssl_enabled ? 'success' : 'info'">
-                            {{ scope.row.ssl_enabled ? '已启用' : '未启用' }}
-                        </el-tag>
-                    </template>
-                </el-table-column>
-                <el-table-column label="操作">
-                    <template #default="scope">
-                        <el-button-group>
-                            <el-button 
-                                type="primary" 
-                                size="small" 
-                                @click="$emit('config', scope.row)">
-                                配置
-                            </el-button>
-                            <el-button 
-                                type="danger" 
-                                size="small" 
-                                @click="handleDelete(scope.row)">
-                                删除
-                            </el-button>
-                        </el-button-group>
-                    </template>
-                </el-table-column>
-            </el-table>
+            <div v-if="loading" class="loading-container">
+                <div class="loading-spinner"></div>
+            </div>
+            <table v-else class="data-table">
+                <thead>
+                    <tr>
+                        <th>域名</th>
+                        <th>状态</th>
+                        <th>SSL证书</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr v-for="site in sites" :key="site.id">
+                        <td>{{site.domain}}</td>
+                        <td>
+                            <span class="status-tag" :class="site.status">
+                                {{site.status || '未知'}}
+                            </span>
+                        </td>
+                        <td>
+                            <span class="status-tag" :class="site.ssl_enabled ? 'success' : 'info'">
+                                {{site.ssl_enabled ? '已启用' : '未启用'}}
+                            </span>
+                        </td>
+                        <td>
+                            <div class="btn-group">
+                                <button 
+                                    class="btn btn-small btn-primary" 
+                                    @click="$emit('config', site)"
+                                >配置</button>
+                                <button 
+                                    class="btn btn-small btn-danger" 
+                                    @click="handleDelete(site)"
+                                >删除</button>
+                            </div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
         </div>
     `,
     methods: {
-        getStatusType(status) {
-            const types = {
-                'active': 'success',
-                'inactive': 'info',
-                'error': 'danger'
-            }
-            return types[status] || 'info'
-        },
         handleDelete(site) {
-            this.$confirm('确认删除该站点吗？', '提示', {
-                confirmButtonText: '确定',
-                cancelButtonText: '取消',
-                type: 'warning'
-            }).then(() => {
+            if (confirm('确认删除该站点吗？')) {
                 this.$emit('delete', site)
-            }).catch(() => {})
+            }
         }
     }
 } 
