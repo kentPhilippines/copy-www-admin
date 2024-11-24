@@ -26,6 +26,128 @@ const App = {
         this.renderUI();
     },
 
+    // 渲染引导页面
+    renderGuide(element) {
+        const steps = [
+            {
+                title: '欢迎',
+                content: `
+                    <h2>欢迎使用站点管理系统</h2>
+                    <p>这是一个强大的站点和服务器管理平台，帮助您：</p>
+                    <ul>
+                        <li>轻松管理多个站点配置</li>
+                        <li>集中监控服务器状态</li>
+                        <li>实时查看系统性能</li>
+                        <li>快速执行远程命令</li>
+                    </ul>
+                `
+            },
+            {
+                title: '站点管理',
+                content: `
+                    <h2>站点管理功能</h2>
+                    <p>在这里，您可以：</p>
+                    <ul>
+                        <li>添加和配置新站点</li>
+                        <li>管理SSL证书</li>
+                        <li>设置Nginx配置</li>
+                        <li>监控站点状态</li>
+                    </ul>
+                `
+            },
+            {
+                title: '服务器管理',
+                content: `
+                    <h2>服务器管理功能</h2>
+                    <p>强大的服务器管理功能包括：</p>
+                    <ul>
+                        <li>添加服务器（支持密码和SSH密钥认证）</li>
+                        <li>执行远程命令</li>
+                        <li>查看命令执行历史</li>
+                        <li>实时监控服务器状态</li>
+                    </ul>
+                `
+            },
+            {
+                title: '监控功能',
+                content: `
+                    <h2>实时监控功能</h2>
+                    <p>全方位的监控功能：</p>
+                    <ul>
+                        <li>CPU、内存、磁盘使用率</li>
+                        <li>系统负载和进程监控</li>
+                        <li>服务状态检查</li>
+                        <li>系统日志实时查看</li>
+                    </ul>
+                `
+            }
+        ];
+
+        let currentStep = 0;
+
+        const renderStep = () => {
+            element.innerHTML = `
+                <div class="guide-overlay">
+                    <div class="guide-container">
+                        <div class="guide-steps">
+                            ${steps.map((step, index) => `
+                                <div class="step-item ${index === currentStep ? 'active' : ''} ${index < currentStep ? 'completed' : ''}">
+                                    ${step.title}
+                                </div>
+                            `).join('')}
+                        </div>
+                        <div class="guide-content">
+                            ${steps[currentStep].content}
+                        </div>
+                        <div class="guide-footer">
+                            ${currentStep === 0 ? `
+                                <button class="btn btn-default" onclick="App.skipGuide()">跳过引导</button>
+                            ` : `
+                                <button class="btn btn-default" onclick="App.prevStep()">上一步</button>
+                            `}
+                            <button class="btn btn-primary" onclick="App.nextStep()">
+                                ${currentStep === steps.length - 1 ? '开始使用' : '下一步'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        };
+
+        // 初始渲染
+        renderStep();
+
+        // 添加导航方法到App对象
+        this.nextStep = () => {
+            if (currentStep < steps.length - 1) {
+                currentStep++;
+                renderStep();
+            } else {
+                this.completeGuide();
+            }
+        };
+
+        this.prevStep = () => {
+            if (currentStep > 0) {
+                currentStep--;
+                renderStep();
+            }
+        };
+
+        this.skipGuide = () => {
+            if (confirm('确定要跳过引导教程吗？')) {
+                this.completeGuide();
+            }
+        };
+
+        this.completeGuide = () => {
+            localStorage.setItem('guideCompleted', 'true');
+            this.data.showGuide = false;
+            this.renderUI();
+            this.loadInitialData();
+        };
+    },
+
     // 绑定事件
     bindEvents() {
         // 标签页切换
