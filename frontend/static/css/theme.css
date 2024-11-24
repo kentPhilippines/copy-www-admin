@@ -1,0 +1,16 @@
+:root {
+    --primary-color: #409EFF;
+    --success-color: #67C23A;
+    --warning-color: #E6A23C;
+    --danger-color: #F56C6C;
+    --info-color: #909399;
+}
+
+/* 自定义主题样式 */
+.custom-theme {
+    --el-color-primary: var(--primary-color);
+    --el-color-success: var(--success-color);
+    --el-color-warning: var(--warning-color);
+    --el-color-danger: var(--danger-color);
+    --el-color-info: var(--info-color);
+} 
