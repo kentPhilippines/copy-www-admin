@@ -976,7 +976,7 @@ const App = {
             .then(data => {
                 if (!data.installed) {
                     if (confirm('需要安装 Nginx 才能添加站点。是否现在安装？')) {
-                        this.installNginx();
+                        App.installNginx();
                     }
                     return;
                 }
