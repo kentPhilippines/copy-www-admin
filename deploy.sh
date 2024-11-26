@@ -11,7 +11,7 @@ check_system_type() {
     else
         echo "UNKNOWN"
     }
-}
+
 
 # 安装系统依赖
 echo "安装系统依赖..."
