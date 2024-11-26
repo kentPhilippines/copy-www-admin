@@ -906,7 +906,7 @@ const App = {
         }
     },
 
-    // 添加���置站点方法
+    // 添加置站点方法
     configSite(siteId) {
         // 获取站点信息
         const site = this.data.sites.find(s => s.id === siteId);
@@ -941,6 +941,51 @@ const App = {
 
     // 添加显示站点对话框方法
     showAddSiteDialog() {
+        // 首先检查 Nginx 状态
+        fetch('/api/check-nginx')
+            .then(response => response.json())
+            .then(data => {
+                if (!data.installed) {
+                    // 如果 Nginx 未安装，显示安装确认对话框
+                    if (confirm('需要安装 Nginx 才能添加站点。是否现在安装？')) {
+                        this.installNginx();
+                    }
+                    return;
+                }
+                // Nginx 已安装，继续显示添加站点对话框
+                this.showAddSiteDialogContent();
+            })
+            .catch(error => {
+                console.error('检查 Nginx 状态失败:', error);
+                Message.error('检查 Nginx 状态失败');
+            });
+    },
+
+    // 添加安装 Nginx 的方法
+    installNginx() {
+        Message.info('正在安装 Nginx，请稍候...');
+        
+        fetch('/api/install-nginx', {
+            method: 'POST'
+        })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    Message.success('Nginx 安装成功');
+                    // 安装成功后显示添加站点对话框
+                    this.showAddSiteDialogContent();
+                } else {
+                    Message.error('Nginx 安装失败：' + data.message);
+                }
+            })
+            .catch(error => {
+                console.error('安装 Nginx 失败:', error);
+                Message.error('安装 Nginx 失败');
+            });
+    },
+
+    // 将原来的 showAddSiteDialog 方法改名为 showAddSiteDialogContent
+    showAddSiteDialogContent() {
         // 检查是否已存在模态框
         if (document.querySelector('.modal')) {
             return;
@@ -949,46 +994,46 @@ const App = {
         const dialog = document.createElement('div');
         dialog.className = 'modal';
         dialog.innerHTML = `
-        <div class="modal-overlay"></div>
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3>添加站点</h3>
-                <button class="close-btn" onclick="App.closeDialog(this)">&times;</button>
+            <div class="modal-overlay"></div>
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>添加站点</h3>
+                    <button class="close-btn" onclick="App.closeDialog(this)">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <form id="add-site-form" class="site-form">
+                        <div class="form-group">
+                            <label>域名</label>
+                            <input 
+                                type="text" 
+                                name="domain"
+                                placeholder="请输入域名"
+                                pattern="^[a-zA-Z0-9][-a-zA-Z0-9]{0,62}(\.[a-zA-Z0-9][-a-zA-Z0-9]{0,62})+$"
+                                required
+                            >
+                        </div>
+                        <div class="form-group">
+                            <label>配置路径</label>
+                            <input 
+                                type="text" 
+                                name="config_path"
+                                placeholder="请输入Nginx配置文件路径"
+                                required
+                            >
+                        </div>
+                        <div class="form-group">
+                            <label class="checkbox-label">
+                                <input type="checkbox" name="ssl_enabled"> SSL证书
+                            </label>
+                        </div>
+                        <div class="form-actions">
+                            <button type="button" class="btn btn-default" onclick="App.closeDialog(this)">取消</button>
+                            <button type="submit" class="btn btn-primary">确定</button>
+                        </div>
+                    </form>
+                </div>
             </div>
-            <div class="modal-body">
-                <form id="add-site-form" class="site-form">
-                    <div class="form-group">
-                        <label>域名</label>
-                        <input 
-                            type="text" 
-                            name="domain"
-                            placeholder="请输入域名"
-                            pattern="^[a-zA-Z0-9][-a-zA-Z0-9]{0,62}(\.[a-zA-Z0-9][-a-zA-Z0-9]{0,62})+$"
-                            required
-                        >
-                    </div>
-                    <div class="form-group">
-                        <label>配置路径</label>
-                        <input 
-                            type="text" 
-                            name="config_path"
-                            placeholder="请输入Nginx配置文件路径"
-                            required
-                        >
-                    </div>
-                    <div class="form-group">
-                        <label class="checkbox-label">
-                            <input type="checkbox" name="ssl_enabled"> SSL证书
-                        </label>
-                    </div>
-                    <div class="form-actions">
-                        <button type="button" class="btn btn-default" onclick="App.closeDialog(this)">取消</button>
-                        <button type="submit" class="btn btn-primary">确定</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    `;
+        `;
 
         document.body.appendChild(dialog);
 
@@ -1059,7 +1104,7 @@ const App = {
     },
 
     deleteServer: function (serverId) {
-        // 实现服务器删除逻辑
+        // ���现服务器删除逻辑
         if (confirm('确定要删除这个服务器吗？')) {
             console.log('删除服务器:', serverId);
             // 这里添加具体的删除逻辑

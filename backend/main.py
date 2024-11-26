@@ -625,6 +625,54 @@ def get_server_metrics():
             }
         }
 
+# 添加新的函数来检查和安装 Nginx
+def check_nginx():
+    try:
+        # 检查 nginx 是否安装
+        result = os.system('which nginx >/dev/null 2>&1')
+        return result == 0
+    except:
+        return False
+
+def install_nginx():
+    try:
+        # 检测系统类型
+        if os.path.exists('/etc/debian_version'):  # Debian/Ubuntu
+            os.system('sudo apt-get update')
+            os.system('sudo apt-get install -y nginx')
+        elif os.path.exists('/etc/redhat-release'):  # CentOS/RHEL
+            os.system('sudo yum install -y epel-release')
+            os.system('sudo yum install -y nginx')
+        elif os.path.exists('/etc/arch-release'):  # Arch Linux
+            os.system('sudo pacman -S --noconfirm nginx')
+        else:
+            return False, "不支持的操作系统"
+        
+        # 启动 Nginx 服务
+        os.system('sudo systemctl start nginx')
+        os.system('sudo systemctl enable nginx')
+        
+        return True, "Nginx 安装成功"
+    except Exception as e:
+        return False, str(e)
+
+# 添加新的 API 端点
+@app.get("/api/check-nginx")
+async def check_nginx_status():
+    nginx_installed = check_nginx()
+    return {
+        "installed": nginx_installed,
+        "message": "Nginx 已安装" if nginx_installed else "Nginx 未安装"
+    }
+
+@app.post("/api/install-nginx")
+async def install_nginx_service():
+    success, message = install_nginx()
+    if success:
+        return {"status": "success", "message": message}
+    else:
+        raise HTTPException(status_code=500, detail=message)
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=9001) 
