@@ -10,8 +10,8 @@ check_system_type() {
         echo "DEBIAN"
     else
         echo "UNKNOWN"
-    }
-
+    fi
+}
 
 # 安装系统依赖
 echo "安装系统依赖..."
