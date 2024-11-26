@@ -18,21 +18,11 @@ import psutil
 import logging
 import time
 
-from contextlib import asynccontextmanager
-
 # 设置日志
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    # 启动时执行
-    init_database()
-    yield
-    # 关闭时执行
-    pass
-
-app = FastAPI(lifespan=lifespan)
+app = FastAPI()
 
 # 允许跨域
 app.add_middleware(
@@ -41,6 +31,17 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# 在启动时初始化数据库
+@app.on_event("startup")
+async def startup_event():
+    init_database()
+    update_servers_table()
+
+# 在关闭时清理资源
+@app.on_event("shutdown")
+async def shutdown_event():
+    pass
 
 # 挂载静态文件目录
 app.mount("/js", StaticFiles(directory="frontend/js"), name="javascript")
@@ -400,12 +401,6 @@ def init_database():
                 
     except Exception as e:
         print(f"初始化数据库失败: {str(e)}")
-
-# 在启动事件中调用初始化函数
-@app.on_event("startup")
-async def startup_event():
-    update_servers_table()
-    init_database()
 
 # 监控数据模型
 class Metrics(BaseModel):
