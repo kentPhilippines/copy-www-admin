@@ -21,11 +21,12 @@ if [ "$SYSTEM_TYPE" = "DEBIAN" ]; then
     # Ubuntu/Debian 系统
     sudo apt-get update
     sudo apt-get install -y python3-dev gcc python3-pip libffi-dev libssl-dev
-    sudo apt-get install -y python3-psutil  # 直接安装系统包
+    sudo apt-get install -y python3-psutil python3-venv  # 添加 python3-venv
 elif [ "$SYSTEM_TYPE" = "RHEL" ]; then
     # CentOS/RHEL 系统
+    sudo yum install -y epel-release
     sudo yum install -y python3-devel gcc python3-pip
-    sudo yum install -y python3-psutil  # 直接安装系统包
+    sudo yum install -y python3-psutil python3-virtualenv  # 添加 python3-virtualenv
 else
     echo "不支持的操作系统类型"
     exit 1
@@ -44,32 +45,41 @@ python3 -m venv venv
 source venv/bin/activate
 
 # 升级pip和安装工具
-pip install --upgrade pip setuptools wheel
+python3 -m pip install --upgrade pip setuptools wheel
 
-# 安装Python依赖
+# 清理pip缓存
+pip cache purge
+
+# 安装依赖（按特定顺序）
 echo "安装Python依赖..."
 
-# 先安装基础包
-pip install psutil --no-cache-dir
+# 1. 安装基础包
+pip install --no-cache-dir wheel
+pip install --no-cache-dir psutil
 
-# 安装 cryptography
-pip install cryptography==36.0.0
+# 2. 安装加密相关包
+pip install --no-cache-dir cryptography==36.0.0
+pip install --no-cache-dir "python-jose[cryptography]==3.2.0"
+pip install --no-cache-dir "passlib[bcrypt]==1.7.4"
 
-# 然后安装其他依赖
-pip install -r requirements.txt
+# 3. 安装FastAPI相关包
+pip install --no-cache-dir fastapi==0.109.2
+pip install --no-cache-dir "uvicorn[standard]>=0.15.0,<0.16.0"
+pip install --no-cache-dir python-multipart==0.0.5
+pip install --no-cache-dir pydantic==2.6.1
 
-# 如果安装失败，尝试单独安装每个包
+# 4. 安装其他依赖
+pip install --no-cache-dir paramiko>=2.8.1
+pip install --no-cache-dir python-dotenv==0.19.0
+pip install --no-cache-dir aiofiles==0.7.0
+
+# 验证安装
+echo "验证依赖安装..."
+python3 -c "import fastapi; import uvicorn; import psutil; import cryptography; print('依赖验证成功')"
+
 if [ $? -ne 0 ]; then
-    echo "尝试单独安装依赖..."
-    pip install fastapi==0.109.2
-    pip install "uvicorn[standard]>=0.15.0,<0.16.0"
-    pip install paramiko>=2.8.1
-    pip install python-multipart==0.0.5
-    pip install "python-jose[cryptography]==3.2.0"
-    pip install "passlib[bcrypt]==1.7.4"
-    pip install python-dotenv==0.19.0
-    pip install aiofiles==0.7.0
-    pip install pydantic==2.6.1
+    echo "依赖安装验证失败"
+    exit 1
 fi
 
 # 初始化数据库
