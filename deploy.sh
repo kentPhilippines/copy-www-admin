@@ -155,6 +155,15 @@ chmod 755 start.sh
 chmod 755 stop.sh
 chmod 755 uninstall.sh
 
+# 在初始化部分添加
+echo "创建日志目录..."
+mkdir -p logs
+chmod 755 logs
+
+# 启动服务时重定向日志
+python backend/main.py > logs/app.log 2>&1 &
+echo $! > backend.pid
+
 echo "=== 部署完成 ==="
 echo "使用说明:"
 echo "1. 启动服务: ./start.sh"

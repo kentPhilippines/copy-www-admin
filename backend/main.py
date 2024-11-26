@@ -625,15 +625,60 @@ def get_server_metrics():
             }
         }
 
-# 添加新的函数来检查和安装 Nginx
+# 修改 check_nginx 函数，添加更多错误处理和日志
 def check_nginx():
     try:
-        # 检查 nginx 是否安装
-        result = os.system('which nginx >/dev/null 2>&1')
-        return result == 0
-    except:
+        # 方法1：检查进程
+        nginx_running = False
+        for proc in psutil.process_iter(['name']):
+            if proc.info['name'] == 'nginx':
+                nginx_running = True
+                break
+
+        # 方法2：检查命令是否存在
+        nginx_installed = os.system('which nginx >/dev/null 2>&1') == 0
+
+        # 方法3：检查服务状态
+        service_status = os.system('systemctl is-active --quiet nginx') == 0
+
+        logger.info(f"Nginx 检查结果: installed={nginx_installed}, running={nginx_running}, service={service_status}")
+        
+        return nginx_installed and (nginx_running or service_status)
+    except Exception as e:
+        logger.error(f"检查 Nginx 状态时出错: {str(e)}")
         return False
 
+# 修改 API 端点，添加更多信息
+@app.get("/api/check-nginx")
+async def check_nginx_status():
+    try:
+        nginx_installed = check_nginx()
+        logger.info(f"Nginx 状态检查: {nginx_installed}")
+        
+        if nginx_installed:
+            # 获取 Nginx 版本信息
+            version = os.popen('nginx -v 2>&1').read().strip()
+            return {
+                "installed": True,
+                "status": "running",
+                "version": version,
+                "message": "Nginx 已安装并运行"
+            }
+        else:
+            return {
+                "installed": False,
+                "status": "not_installed",
+                "message": "Nginx 未安装"
+            }
+    except Exception as e:
+        logger.error(f"Nginx 状态检查失败: {str(e)}")
+        return {
+            "installed": False,
+            "status": "error",
+            "message": f"检查失败: {str(e)}"
+        }
+
+# 添加新的函数来检查和安装 Nginx
 def install_nginx():
     try:
         # 检测系统类型
@@ -657,14 +702,6 @@ def install_nginx():
         return False, str(e)
 
 # 添加新的 API 端点
-@app.get("/api/check-nginx")
-async def check_nginx_status():
-    nginx_installed = check_nginx()
-    return {
-        "installed": nginx_installed,
-        "message": "Nginx 已安装" if nginx_installed else "Nginx 未安装"
-    }
-
 @app.post("/api/install-nginx")
 async def install_nginx_service():
     success, message = install_nginx()

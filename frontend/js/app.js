@@ -27,13 +27,17 @@ const App = {
         // 检查 Nginx 状态
         try {
             const response = await fetch('/api/check-nginx');
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
             const data = await response.json();
             this.data.nginxInstalled = data.installed;
             if (data.installed) {
-                Message.success('检测到 Nginx 已安装');
+                Message.success(`检测到 Nginx: ${data.version || ''}`);
             }
         } catch (error) {
             console.error('检查 Nginx 状态失败:', error);
+            this.data.nginxInstalled = false;
         }
 
         // 继续其他初始化
@@ -963,22 +967,25 @@ const App = {
     showAddSiteDialog() {
         // 首先检查 Nginx 状态
         fetch('/api/check-nginx')
-            .then(response => response.json())
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+            })
             .then(data => {
                 if (!data.installed) {
-                    // 如果 Nginx 未安装，显示安装确认对话框
                     if (confirm('需要安装 Nginx 才能添加站点。是否现在安装？')) {
                         this.installNginx();
                     }
                     return;
                 }
-                // Nginx 已安装，显示提示并继续
-                Message.success('Nginx 已安装');
+                Message.success(data.message || 'Nginx 已安装');
                 this.showAddSiteDialogContent();
             })
             .catch(error => {
                 console.error('检查 Nginx 状态失败:', error);
-                Message.error('检查 Nginx 状态失败');
+                Message.error('检查 Nginx 状态失败，请稍后重试');
             });
     },
 
