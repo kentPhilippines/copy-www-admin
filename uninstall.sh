@@ -22,8 +22,6 @@ if [ -f "sites.db" ]; then
 fi
 
 # 删除项目文件
-echo "4. 删除项目文件..."
-rm -rf backend frontend database start.sh
 
 echo "=== 卸载完成 ==="
 

@@ -21,6 +21,7 @@ const App = {
 
     // 初始化应用
     async init() {
+        console.log('初始化应用');
         this.bindEvents();
         await this.loadInitialData();
         this.renderUI();
@@ -36,7 +37,7 @@ const App = {
                     <p>这是一个强大的站点和服务器管理平台，帮助您：</p>
                     <ul>
                         <li>轻松管理多个站点配置</li>
-                        <li>集中监控服务器状态</li>
+                        <li>集中监控��务器状态</li>
                         <li>实时查看系统性能</li>
                         <li>快速执行远程命令</li>
                     </ul>
@@ -143,19 +144,19 @@ const App = {
         this.completeGuide = () => {
             // 设置引导完成标记
             localStorage.setItem('guideCompleted', 'true');
-            
+
             // 隐藏引导页面
             const guideElement = document.getElementById('guide');
             if (guideElement) {
                 guideElement.style.display = 'none';
             }
-            
+
             // 更新状态
             this.data.showGuide = false;
-            
+
             // 显示加载动画
             this.data.loading = true;
-            
+
             // 加载初始数据
             setTimeout(async () => {
                 try {
@@ -163,7 +164,7 @@ const App = {
                         this.loadSites(),
                         this.loadServers()
                     ]);
-                    
+
                     // 显示主界面
                     const mainContent = document.getElementById('main-content');
                     if (mainContent) {
@@ -188,11 +189,11 @@ const App = {
             });
         });
 
-        // 添加站点按钮
-        const addSiteBtn = document.querySelector('#add-site-btn');
-        if (addSiteBtn) {
-            addSiteBtn.addEventListener('click', () => this.showAddSiteDialog());
-        }
+        // // 添加站点按钮
+        // const addSiteBtn = document.querySelector('#add-site-btn');
+        // if (addSiteBtn) {
+        //     addSiteBtn.addEventListener('click', () => this.showAddSiteDialog());
+        // }
 
         // 添加服务器按钮
         const addServerBtn = document.querySelector('#add-server-btn');
@@ -221,7 +222,7 @@ const App = {
             }
         } catch (error) {
             console.error('加载数据失败:', error);
-            Message.error('系统加载失败，请��新页面重试');
+            Message.error('系统加载失败，请刷新页面重试');
         } finally {
             this.data.loading = false;
         }
@@ -431,68 +432,79 @@ const App = {
         fetch(`/api/sites/${siteId}`, {
             method: 'DELETE'
         })
-        .then(response => response.json())
-        .then(() => {
-            Message.success('站点删除成功');
-            this.loadSites();
-        })
-        .catch(error => {
-            console.error('删除站点失败:', error);
-            Message.error('删除站点失败');
-        });
+            .then(response => response.json())
+            .then(() => {
+                Message.success('站点删除成功');
+                this.loadSites();
+            })
+            .catch(error => {
+                console.error('删除站点失败:', error);
+                Message.error('删除站点失败');
+            });
     },
 
     // 添加显示站点对话框方法
     showAddSiteDialog() {
+        // 检查是否已存在模态框
+        if (document.querySelector('.modal')) {
+            return;
+        }
+
         const dialog = document.createElement('div');
         dialog.className = 'modal';
         dialog.innerHTML = `
-            <div class="modal-overlay"></div>
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h3>添加站点</h3>
-                    <button class="close-btn" onclick="this.closest('.modal').remove()">&times;</button>
-                </div>
-                <div class="modal-body">
-                    <form id="add-site-form" class="site-form">
-                        <div class="form-group">
-                            <label>域名</label>
-                            <input 
-                                type="text" 
-                                name="domain"
-                                placeholder="请输入域名"
-                                pattern="^[a-zA-Z0-9][-a-zA-Z0-9]{0,62}(\.[a-zA-Z0-9][-a-zA-Z0-9]{0,62})+$"
-                                required
-                            >
-                        </div>
-                        <div class="form-group">
-                            <label>配置路径</label>
-                            <input 
-                                type="text" 
-                                name="config_path"
-                                placeholder="请输入Nginx配置文件路径"
-                                required
-                            >
-                        </div>
-                        <div class="form-group">
-                            <label class="checkbox-label">
-                                <input type="checkbox" name="ssl_enabled"> SSL证书
-                            </label>
-                        </div>
-                        <div class="form-actions">
-                            <button type="button" class="btn btn-default" onclick="this.closest('.modal').remove()">取消</button>
-                            <button type="submit" class="btn btn-primary">确定</button>
-                        </div>
-                    </form>
-                </div>
+        <div class="modal-overlay"></div>
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>添加站点</h3>
+                <button class="close-btn" onclick="App.closeDialog(this)">&times;</button>
             </div>
-        `;
+            <div class="modal-body">
+                <form id="add-site-form" class="site-form">
+                    <div class="form-group">
+                        <label>域名</label>
+                        <input 
+                            type="text" 
+                            name="domain"
+                            placeholder="请输入域名"
+                            pattern="^[a-zA-Z0-9][-a-zA-Z0-9]{0,62}(\.[a-zA-Z0-9][-a-zA-Z0-9]{0,62})+$"
+                            required
+                        >
+                    </div>
+                    <div class="form-group">
+                        <label>配置路径</label>
+                        <input 
+                            type="text" 
+                            name="config_path"
+                            placeholder="请输入Nginx配置文件路径"
+                            required
+                        >
+                    </div>
+                    <div class="form-group">
+                        <label class="checkbox-label">
+                            <input type="checkbox" name="ssl_enabled"> SSL证书
+                        </label>
+                    </div>
+                    <div class="form-actions">
+                        <button type="button" class="btn btn-default" onclick="App.closeDialog(this)">取消</button>
+                        <button type="submit" class="btn btn-primary">确定</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    `;
 
         document.body.appendChild(dialog);
 
         // 添加表单提交处理
-        document.getElementById('add-site-form').addEventListener('submit', (e) => {
+        const form = document.getElementById('add-site-form');
+        form.addEventListener('submit', async (e) => {
             e.preventDefault();
+
+            // 禁用提交按钮
+            const submitBtn = form.querySelector('button[type="submit"]');
+            submitBtn.disabled = true;
+
             const formData = new FormData(e.target);
             const siteData = {
                 domain: formData.get('domain'),
@@ -500,25 +512,44 @@ const App = {
                 ssl_enabled: formData.get('ssl_enabled') === 'on'
             };
 
-            fetch('/api/sites', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(siteData)
-            })
-            .then(response => response.json())
-            .then(() => {
+            try {
+                const response = await fetch('/api/sites', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(siteData)
+                });
+
+                if (!response.ok) {
+                    throw new Error('添加站点失败');
+                }
+
+                await response.json();
                 Message.success('站点添加成功');
                 this.loadSites();
-                dialog.remove();
-            })
-            .catch(error => {
+                this.closeDialog(dialog);
+            } catch (error) {
                 console.error('添加站点失败:', error);
                 Message.error('添加站点失败');
-            });
+                submitBtn.disabled = false;
+            }
+        });
+
+        // 点击遮罩层关闭
+        dialog.querySelector('.modal-overlay').addEventListener('click', () => {
+            this.closeDialog(dialog);
         });
     },
+
+    // 添加关闭对话框方法
+    closeDialog(element) {
+        const dialog = element.closest('.modal');
+        if (dialog) {
+            dialog.remove();
+        }
+    },
+
 
     // 添加显示服务器对话框方法
     showAddServerDialog() {
@@ -548,7 +579,6 @@ const App = {
                                 type="text" 
                                 name="ip"
                                 placeholder="请输入IP地址"
-                                pattern="^(\d{1,3}\.){3}\d{1,3}$"
                                 required
                             >
                         </div>
@@ -656,22 +686,75 @@ const App = {
                 },
                 body: JSON.stringify(serverData)
             })
-            .then(response => response.json())
-            .then(() => {
-                Message.success('服务器添加成功');
-                this.loadServers();
-                dialog.remove();
-            })
-            .catch(error => {
-                console.error('添加服务器失败:', error);
-                Message.error('添加服务器失败');
-            });
+                .then(response => response.json())
+                .then(() => {
+                    Message.success('服务器添加成功');
+                    this.loadServers();
+                    dialog.remove();
+                })
+                .catch(error => {
+                    console.error('添加服务器失败:', error);
+                    Message.error('添加服务器失败');
+                });
         });
+    },
+    monitorServer: function(serverId) {
+        // 实现服务器监控逻辑
+        console.log('监控服务器:', serverId);
+
+        
+        // 这里添加具体的监控逻辑
+    },
+
+    executeCommand: function(serverId) {
+        // 实现命令执行逻辑
+        console.log('执行命令于服务器:', serverId);
+        // 这里添加具体的命令执行逻辑
+    },
+
+    viewLogs: function(serverId) {
+        // 实现日志查看逻辑
+        console.log('查看服务器日志:', serverId);
+        // 这里添加具体的日志查看逻辑
+    },
+
+    deleteServer: function(serverId) {
+        // 实现服务器删除逻辑
+        if (confirm('确定要删除这个服务器吗？')) {
+            console.log('删除服务器:', serverId);
+            // 这里添加具体的删除逻辑
+        }
     }
 };
 
 // 将App挂载到全局
 window.App = App;
 
-// 当DOM加载完成后初始化应用
-document.addEventListener('DOMContentLoaded', () => App.init()); 
+// 标签切换功能
+function initTabs() {
+    const tabs = document.querySelectorAll('.tab-item');
+    const panes = document.querySelectorAll('.tab-pane');
+
+    // 默认激活第一个标签
+    tabs[0].classList.add('active');
+    panes[0].classList.add('active');
+
+    tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            // 移除所有激活状态
+            tabs.forEach(t => t.classList.remove('active'));
+            panes.forEach(p => p.classList.remove('active'));
+
+            // 激活当前标签
+            tab.classList.add('active');
+            const tabId = tab.getAttribute('data-tab');
+            document.getElementById(`${tabId}-panel`).classList.add('active');
+        });
+    });
+}
+
+// 在页面加载完成后初始化
+document.addEventListener('DOMContentLoaded', () => {
+    initTabs();
+    App.init();
+}); 

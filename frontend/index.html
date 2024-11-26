@@ -17,7 +17,7 @@
 
         <div id="main-content" class="container" v-else>
             <div class="tabs">
-                <div class="tab-item" data-tab="sites">站点管理</div>
+                <div class="tab-item" data-tab="sites">本机信息</div>  
                 <div class="tab-item" data-tab="servers">服务器管理</div>
             </div>
 
@@ -25,15 +25,14 @@
                 <!-- 站点管理面板 -->
                 <div id="sites-panel" class="tab-pane">
                     <div class="header">
-                        <button class="btn btn-primary" onclick="showAddSiteDialog()">添加站点</button>
+                        <button class="btn btn-primary" onclick="App.showAddSiteDialog()">添加站点</button>
                     </div>
                     <div id="sites-table"></div>
                 </div>
-
                 <!-- 服务器管理面板 -->
                 <div id="servers-panel" class="tab-pane">
                     <div class="header">
-                        <button class="btn btn-primary" onclick="showAddServerDialog()">添加服务器</button>
+                        <button class="btn btn-primary" onclick="App.showAddServerDialog()">添加服务器</button>
                     </div>
                     <div id="servers-empty" class="empty-state">
                         <div class="empty-icon">📦</div>
@@ -46,7 +45,7 @@
                                 readonly 
                                 class="command-text"
                             ></textarea>
-                            <button class="btn btn-primary" onclick="copyInstallCommand()">
+                            <button class="btn btn-primary" onclick="App.copyInstallCommand()">
                                 复制安装命令
                             </button>
                         </div>

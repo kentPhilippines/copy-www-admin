@@ -24,7 +24,6 @@ const ServerForm = {
                                 type="text" 
                                 v-model="serverForm.ip"
                                 placeholder="请输入IP地址"
-                                pattern="^(\d{1,3}\.){3}\d{1,3}$"
                                 required
                             >
                         </div>
