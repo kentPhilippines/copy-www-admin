@@ -59,7 +59,11 @@ install_and_verify() {
     package=$1
     import_name=$2
     echo "安装 $package..."
-    python3 -m pip install --no-cache-dir $package
+    python3 -m pip install --no-cache-dir $package || {
+        echo "尝试安装依赖..."
+        python3 -m pip install --no-cache-dir typing-extensions
+        python3 -m pip install --no-cache-dir $package
+    }
     if [ $? -ne 0 ]; then
         echo "安装 $package 失败"
         return 1
@@ -80,16 +84,17 @@ install_and_verify() {
 
 # 按顺序安装并验证每个包
 install_and_verify "wheel" || exit 1
+install_and_verify "typing-extensions>=4.0.0" || exit 1
 install_and_verify "psutil" "psutil" || exit 1
 install_and_verify "cryptography==36.0.0" "cryptography" || exit 1
-install_and_verify "fastapi==0.109.2" "fastapi" || exit 1
-install_and_verify "uvicorn[standard]>=0.15.0,<0.16.0" "uvicorn" || exit 1
+install_and_verify "pydantic>=1.8.0,<2.0.0" "pydantic" || exit 1
+install_and_verify "fastapi==0.65.2" "fastapi" || exit 1  # 使用较低版本
+install_and_verify "uvicorn==0.14.0" "uvicorn" || exit 1
 install_and_verify "python-multipart==0.0.5" || exit 1
 install_and_verify "python-jose[cryptography]==3.2.0" || exit 1
 install_and_verify "passlib[bcrypt]==1.7.4" "passlib" || exit 1
 install_and_verify "python-dotenv==0.19.0" || exit 1
 install_and_verify "aiofiles==0.7.0" "aiofiles" || exit 1
-install_and_verify "pydantic==2.6.1" "pydantic" || exit 1
 install_and_verify "paramiko>=2.8.1" "paramiko" || exit 1
 
 echo "所有依赖安装完成"
