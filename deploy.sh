@@ -21,12 +21,12 @@ if [ "$SYSTEM_TYPE" = "DEBIAN" ]; then
     # Ubuntu/Debian 系统
     sudo apt-get update
     sudo apt-get install -y python3-dev gcc python3-pip libffi-dev libssl-dev
-    sudo apt-get install -y python3-psutil python3-venv  # 添加 python3-venv
+    sudo apt-get install -y python3-psutil python3-venv sqlite3
 elif [ "$SYSTEM_TYPE" = "RHEL" ]; then
     # CentOS/RHEL 系统
     sudo yum install -y epel-release
-    sudo yum install -y python3-devel gcc python3-pip
-    sudo yum install -y python3-psutil python3-virtualenv  # 添加 python3-virtualenv
+    sudo yum install -y python3-devel gcc python3-pip sqlite
+    sudo yum install -y python3-psutil python3-virtualenv
 else
     echo "不支持的操作系统类型"
     exit 1
@@ -44,41 +44,68 @@ python3 -m venv venv
 # 激活虚拟环境
 source venv/bin/activate
 
-# 升级pip和安装工具
+# 验证虚拟环境
+which python3
+python3 --version
+
+# 升级基础工具
 python3 -m pip install --upgrade pip setuptools wheel
 
-# 清理pip缓存
-pip cache purge
+# 安装依赖
+echo "开始安装依赖..."
 
-# 安装依赖（按特定顺序）
-echo "安装Python依赖..."
+# 安装每个包并验证
+install_and_verify() {
+    package=$1
+    import_name=$2
+    echo "安装 $package..."
+    python3 -m pip install --no-cache-dir $package
+    if [ $? -ne 0 ]; then
+        echo "安装 $package 失败"
+        return 1
+    fi
+    
+    if [ ! -z "$import_name" ]; then
+        echo "验证 $import_name..."
+        python3 -c "import $import_name" 2>/dev/null
+        if [ $? -ne 0 ]; then
+            echo "导入 $import_name 失败"
+            return 1
+        fi
+    fi
+    
+    echo "$package 安装成功"
+    return 0
+}
 
-# 1. 安装基础包
-pip install --no-cache-dir wheel
-pip install --no-cache-dir psutil
+# 按顺序安装并验证每个包
+install_and_verify "wheel" || exit 1
+install_and_verify "psutil" "psutil" || exit 1
+install_and_verify "cryptography==36.0.0" "cryptography" || exit 1
+install_and_verify "fastapi==0.109.2" "fastapi" || exit 1
+install_and_verify "uvicorn[standard]>=0.15.0,<0.16.0" "uvicorn" || exit 1
+install_and_verify "python-multipart==0.0.5" || exit 1
+install_and_verify "python-jose[cryptography]==3.2.0" || exit 1
+install_and_verify "passlib[bcrypt]==1.7.4" "passlib" || exit 1
+install_and_verify "python-dotenv==0.19.0" || exit 1
+install_and_verify "aiofiles==0.7.0" "aiofiles" || exit 1
+install_and_verify "pydantic==2.6.1" "pydantic" || exit 1
+install_and_verify "paramiko>=2.8.1" "paramiko" || exit 1
 
-# 2. 安装加密相关包
-pip install --no-cache-dir cryptography==36.0.0
-pip install --no-cache-dir "python-jose[cryptography]==3.2.0"
-pip install --no-cache-dir "passlib[bcrypt]==1.7.4"
+echo "所有依赖安装完成"
 
-# 3. 安装FastAPI相关包
-pip install --no-cache-dir fastapi==0.109.2
-pip install --no-cache-dir "uvicorn[standard]>=0.15.0,<0.16.0"
-pip install --no-cache-dir python-multipart==0.0.5
-pip install --no-cache-dir pydantic==2.6.1
-
-# 4. 安装其他依赖
-pip install --no-cache-dir paramiko>=2.8.1
-pip install --no-cache-dir python-dotenv==0.19.0
-pip install --no-cache-dir aiofiles==0.7.0
-
-# 验证安装
-echo "验证依赖安装..."
-python3 -c "import fastapi; import uvicorn; import psutil; import cryptography; print('依赖验证成功')"
+# 最终验证
+python3 -c "
+import fastapi
+import uvicorn
+import psutil
+import cryptography
+import pydantic
+print('所有依赖验证成功')
+"
 
 if [ $? -ne 0 ]; then
-    echo "依赖安装验证失败"
+    echo "最终依赖验证失败"
     exit 1
 fi
 
