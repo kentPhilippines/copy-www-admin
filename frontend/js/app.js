@@ -37,7 +37,7 @@ const App = {
                     <p>这是一个强大的站点和服务器管理平台，帮助您：</p>
                     <ul>
                         <li>轻松管理多个站点配置</li>
-                        <li>集中监控��务器状态</li>
+                        <li>集中监控状态</li>
                         <li>实时查看系统性能</li>
                         <li>快速执行远程命令</li>
                     </ul>
@@ -102,7 +102,7 @@ const App = {
                         </div>
                         <div class="guide-footer">
                             ${currentStep === 0 ? `
-                                <button class="btn btn-default" onclick="App.skipGuide()">跳过引导</button>
+                                <button class="btn btn-default" onclick="App.skipGuide()">过导</button>
                             ` : `
                                 <button class="btn btn-default" onclick="App.prevStep()">上一步</button>
                             `}
@@ -189,16 +189,10 @@ const App = {
             });
         });
 
-        // // 添加站点按钮
-        // const addSiteBtn = document.querySelector('#add-site-btn');
-        // if (addSiteBtn) {
-        //     addSiteBtn.addEventListener('click', () => this.showAddSiteDialog());
-        // }
-
-        // 添加服务器按钮
-        const addServerBtn = document.querySelector('#add-server-btn');
-        if (addServerBtn) {
-            addServerBtn.addEventListener('click', () => this.showAddServerDialog());
+        //添加站点按钮
+        const addSiteBtn = document.querySelector('#add-site-btn');
+        if (addSiteBtn) {
+            addSiteBtn.addEventListener('click', () => this.showAddSiteDialog());
         }
 
         // 复制命令按钮
@@ -222,7 +216,7 @@ const App = {
             }
         } catch (error) {
             console.error('加载数据失败:', error);
-            Message.error('系统加载失败，请刷新页面重试');
+            Message.error('系统加载失败，请刷新页面重');
         } finally {
             this.data.loading = false;
         }
@@ -346,38 +340,540 @@ const App = {
         container.style.display = 'block';
 
         container.innerHTML = `
-            <table class="data-table">
-                <thead>
-                    <tr>
-                        <th>服务器名称</th>
-                        <th>IP地址</th>
-                        <th>状态</th>
-                        <th>操作</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    ${this.data.servers.map(server => `
-                        <tr>
-                            <td>${server.name}</td>
-                            <td>${server.ip}</td>
-                            <td>
-                                <span class="status-tag ${server.status}">
-                                    ${server.status || '未知'}
-                                </span>
-                            </td>
-                            <td>
-                                <div class="btn-group">
-                                    <button class="btn btn-small btn-primary" onclick="App.monitorServer(${server.id})">监控</button>
-                                    <button class="btn btn-small btn-success" onclick="App.executeCommand(${server.id})">执行命令</button>
-                                    <button class="btn btn-small btn-info" onclick="App.viewLogs(${server.id})">查看日志</button>
-                                    <button class="btn btn-small btn-danger" onclick="App.deleteServer(${server.id})">删除</button>
-                                </div>
-                            </td>
-                        </tr>
-                    `).join('')}
-                </tbody>
-            </table>
+            <div class="servers-grid">
+                ${this.data.servers.map(server => `
+                    <div class="server-card">
+                        <div class="server-header">
+                            <h3>${server.name}</h3>
+                            <span class="status-tag ${server.status}">
+                                ${server.status || '未知'}
+                            </span>
+                        </div>
+                        <div class="server-info">
+                            <p>外网IP：${server.ip}</p>
+                            <p>内网IP：${server.internal_ip || '-'}</p>
+                        </div>
+                        <div class="server-charts">
+                            <div class="chart-item">
+                                <canvas id="cpuChart-${server.id}"></canvas>
+                            </div>
+                            <div class="chart-item">
+                                <canvas id="memoryChart-${server.id}"></canvas>
+                            </div>
+                            <div class="chart-item">
+                                <canvas id="diskChart-${server.id}"></canvas>
+                            </div>
+                            <div class="chart-item">
+                                <canvas id="loadChart-${server.id}"></canvas>
+                            </div>
+                            <div class="chart-item">
+                                <canvas id="networkChart-${server.id}"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                `).join('')}
+            </div>
         `;
+
+        // 为每个服务器初始化图表
+        this.data.servers.forEach(server => {
+            this.initServerCharts(server.id);
+            this.startServerMonitoring(server.id);
+        });
+    },
+
+    // 初始化单个服务器的图表
+    async initServerCharts(serverId) {
+        // 检查是否加载 Chart.js
+        if (typeof Chart === 'undefined') {
+            await new Promise((resolve, reject) => {
+                const script = document.createElement('script');
+                script.src = 'https://cdn.jsdelivr.net/npm/chart.js@2.9.4/dist/Chart.min.js';
+                script.onload = resolve;
+                script.onerror = reject;
+                document.head.appendChild(script);
+            });
+        }
+
+        // 通用图表配置
+        const commonOptions = {
+            responsive: true,
+            maintainAspectRatio: false, // 允许固定大小
+            animation: {
+                duration: 750,
+                easing: 'easeInOutQuart'
+            },
+            plugins: {
+                legend: {
+                    display: true,
+                    position: 'bottom',
+                    labels: {
+                        padding: 15,
+                        boxWidth: 12,
+                        font: {
+                            size: 12
+                        }
+                    }
+                },
+                title: {
+                    display: true,
+                    font: {
+                        size: 14,
+                        weight: 'bold'
+                    },
+                    padding: {
+                        top: 10,
+                        bottom: 10
+                    }
+                }
+            }
+        };
+
+        // 圆环图配置
+        const doughnutOptions = {
+            ...commonOptions,
+            cutout: '70%',
+            radius: '90%'
+        };
+
+        // CPU使用率图表
+        this[`cpuChart-${serverId}`] = new Chart(document.getElementById(`cpuChart-${serverId}`), {
+            type: 'doughnut',
+            data: {
+                labels: ['已用', '空闲'],
+                datasets: [{
+                    data: [],
+                    backgroundColor: ['#ff6384', '#36a2eb'],
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                ...doughnutOptions,
+                title: {
+                    display: true,
+                    text: 'CPU使用率',
+                    font: {
+                        size: 16,
+                        weight: 'bold'
+                    }
+                },
+                plugins: {
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                if (context.raw === undefined) return '';
+                                return `${context.label}: ${context.raw.toFixed(1)}%`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        // 添加实时数据显示容器
+        const cpuContainer = document.getElementById(`cpuChart-${serverId}`).parentElement;
+        cpuContainer.insertAdjacentHTML('beforeend', `
+            <div class="chart-data-display">
+                <div class="data-item">
+                    <span class="label">CPU使用率:</span>
+                    <span class="value" id="cpu-value-${serverId}">-</span>
+                </div>
+            </div>
+        `);
+
+        // 内存使用图表
+        this[`memoryChart-${serverId}`] = new Chart(document.getElementById(`memoryChart-${serverId}`), {
+            type: 'doughnut',
+            data: {
+                labels: ['已用', '空闲'],
+                datasets: [{
+                    data: [],
+                    backgroundColor: ['#ff6384', '#36a2eb'],
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                ...doughnutOptions,
+                title: {
+                    display: true,
+                    text: '内存使用率',
+                    font: {
+                        size: 16,
+                        weight: 'bold'
+                    }
+                },
+                plugins: {
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                if (context.raw === undefined) return '';
+                                return `${context.label}: ${context.raw.toFixed(1)}%`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        // 添加内存使用量显示
+        const memoryContainer = document.getElementById(`memoryChart-${serverId}`).parentElement;
+        memoryContainer.insertAdjacentHTML('beforeend', `
+            <div class="chart-data-display">
+                <div class="data-item">
+                    <span class="label">内存使用:</span>
+                    <span class="value" id="memory-value-${serverId}">-</span>
+                </div>
+                <div class="data-item">
+                    <span class="label">总内存:</span>
+                    <span class="value" id="memory-total-${serverId}">-</span>
+                </div>
+            </div>
+        `);
+
+        // 磁盘使用图表
+        this[`diskChart-${serverId}`] = new Chart(document.getElementById(`diskChart-${serverId}`), {
+            type: 'doughnut',
+            data: {
+                labels: ['已用', '空闲'],
+                datasets: [{
+                    data: [0, 100],
+                    backgroundColor: ['#ff6384', '#36a2eb'],
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                ...doughnutOptions,
+                title: {
+                    display: true,
+                    text: '磁盘使用率',
+                    font: {
+                        size: 16,
+                        weight: 'bold'
+                    }
+                }
+            }
+        });
+
+        // 系统负载图表
+        this[`loadChart-${serverId}`] = new Chart(document.getElementById(`loadChart-${serverId}`), {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [{
+                    label: '系统负载',
+                    data: [],
+                    borderColor: '#ff6384',
+                    fill: false,
+                    tension: 0.4,
+                    pointRadius: 4,
+                    pointHoverRadius: 6
+                }]
+            },
+            options: {
+                ...commonOptions,
+                scales: {
+                    x: {
+                        display: true,
+                        title: {
+                            display: true,
+                            text: '时间',
+                            font: {
+                                size: 14
+                            }
+                        },
+                        ticks: {
+                            font: {
+                                size: 12
+                            }
+                        }
+                    },
+                    y: {
+                        display: true,
+                        title: {
+                            display: true,
+                            text: '负载',
+                            font: {
+                                size: 14
+                            }
+                        },
+                        ticks: {
+                            beginAtZero: true,
+                            font: {
+                                size: 12
+                            }
+                        }
+                    }
+                },
+                plugins: {
+                    ...commonOptions.plugins,
+                    tooltip: {
+                        ...commonOptions.plugins.tooltip,
+                        callbacks: {
+                            label: function(context) {
+                                return `负载: ${context.raw.toFixed(2)}`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        // 添加实时数据显示容器
+        const chartContainer = document.getElementById(`loadChart-${serverId}`).parentElement;
+        const dataDisplay = document.createElement('div');
+        dataDisplay.className = 'chart-data-display';
+        dataDisplay.innerHTML = `
+            <div class="data-item">
+                <span class="label">当前负载:</span>
+                <span class="value" id="load-value-${serverId}">0.00</span>
+            </div>
+        `;
+        chartContainer.appendChild(dataDisplay);
+
+        // 网络流量图表
+        this[`networkChart-${serverId}`] = new Chart(document.getElementById(`networkChart-${serverId}`), {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [
+                    {
+                        label: '入站流量(MB/s)',
+                        data: [],
+                        borderColor: '#67C23A',
+                        fill: false,
+                        tension: 0.4
+                    },
+                    {
+                        label: '出站流量(MB/s)',
+                        data: [],
+                        borderColor: '#E6A23C',
+                        fill: false,
+                        tension: 0.4
+                    }
+                ]
+            },
+            options: {
+                ...commonOptions,
+                title: {
+                    display: true,
+                    text: '网络流量',
+                    font: {
+                        size: 16,
+                        weight: 'bold'
+                    }
+                },
+                scales: {
+                    x: {
+                        display: true,
+                        title: {
+                            display: true,
+                            text: '时间',
+                            font: {
+                                size: 14
+                            }
+                        },
+                        ticks: {
+                            font: {
+                                size: 12
+                            }
+                        }
+                    },
+                    y: {
+                        display: true,
+                        title: {
+                            display: true,
+                            text: '流量(MB/s)',
+                            font: {
+                                size: 14
+                            }
+                        },
+                        ticks: {
+                            beginAtZero: true,
+                            font: {
+                                size: 12
+                            }
+                        }
+                    }
+                },
+                plugins: {
+                    ...commonOptions.plugins,
+                    tooltip: {
+                        ...commonOptions.plugins.tooltip,
+                        callbacks: {
+                            label: function(context) {
+                                return `流量: ${context.raw.toFixed(2)} MB/s`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        // 添加网络流量实时数据显示
+        const networkContainer = document.getElementById(`networkChart-${serverId}`).parentElement;
+        networkContainer.insertAdjacentHTML('beforeend', `
+            <div class="chart-data-display">
+                <div class="data-item">
+                    <span class="label">入站流量:</span>
+                    <span class="value" id="network-in-${serverId}">0.00 MB/s</span>
+                </div>
+                <div class="data-item">
+                    <span class="label">出站流量:</span>
+                    <span class="value" id="network-out-${serverId}">0.00 MB/s</span>
+                </div>
+                <div class="data-item">
+                    <span class="label">总接收:</span>
+                    <span class="value" id="network-total-in-${serverId}">0.00 MB</span>
+                </div>
+                <div class="data-item">
+                    <span class="label">总发送:</span>
+                    <span class="value" id="network-total-out-${serverId}">0.00 MB</span>
+                </div>
+            </div>
+        `);
+    },
+
+    // 开始监控服务器
+    startServerMonitoring(serverId) {
+        const updateServerStatus = async () => {
+            try {
+                const response = await fetch(`/api/servers/${serverId}/status`);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const data = await response.json();
+
+                if (data.metrics) {
+                    this.updateServerCharts(serverId, data.metrics);
+                }
+            } catch (error) {
+                console.error(`获取服务器 ${serverId} 状态失败:`, error);
+            }
+        };
+
+        // 立即更新一次
+        updateServerStatus();
+
+        // 每30秒更新一次
+        this[`statusInterval-${serverId}`] = setInterval(updateServerStatus, 1000);
+    },
+
+    // 更新服务器图表数据
+    updateServerCharts(serverId, metrics) {
+        // 更新CPU图表和数据显示
+        const cpuChart = this[`cpuChart-${serverId}`];
+        if (cpuChart && metrics.cpu_usage !== undefined) {
+            cpuChart.data.datasets[0].data = [
+                metrics.cpu_usage,
+                100 - metrics.cpu_usage
+            ];
+            cpuChart.update();
+            document.getElementById(`cpu-value-${serverId}`).textContent = 
+                `${metrics.cpu_usage.toFixed(1)}%`;
+        }
+
+        // 更新内存图表和数据显示
+        const memoryChart = this[`memoryChart-${serverId}`];
+        if (memoryChart && metrics.memory_usage !== undefined) {
+            memoryChart.data.datasets[0].data = [
+                metrics.memory_usage,
+                100 - metrics.memory_usage
+            ];
+            memoryChart.update();
+            document.getElementById(`memory-value-${serverId}`).textContent = 
+                `${metrics.memory_used.toFixed(1)}GB / ${metrics.memory_total.toFixed(1)}GB`;
+            document.getElementById(`memory-total-${serverId}`).textContent = 
+                `${metrics.memory_usage.toFixed(1)}%`;
+        }
+
+        // 更新磁盘图表
+        const diskChart = this[`diskChart-${serverId}`];
+        if (diskChart) {
+            diskChart.data.datasets[0].data = [
+                metrics.disk_usage || 0,
+                100 - (metrics.disk_usage || 0)
+            ];
+            diskChart.update();
+        }
+
+        // 更新负载图表
+        const loadChart = this[`loadChart-${serverId}`];
+        if (loadChart) {
+            const now = new Date().toLocaleTimeString();
+            const loadData = Array.isArray(metrics.load_average) ? 
+                metrics.load_average[0] : // 使用1分钟负载
+                (metrics.load_average || 0);
+            
+            loadChart.data.labels.push(now);
+            loadChart.data.datasets[0].data.push(loadData);
+
+            // 保持最近10个数据点
+            if (loadChart.data.labels.length > 10) {
+                loadChart.data.labels.shift();
+                loadChart.data.datasets[0].data.shift();
+            }
+            loadChart.update();
+        }
+
+        // 更新网络流量图表和数据显示
+        const networkChart = this[`networkChart-${serverId}`];
+        if (networkChart && metrics.network) {
+            const now = new Date().toLocaleTimeString();
+            
+            // 计算速率和总量
+            const formatNetworkSpeed = (bytes) => {
+                if (bytes < 1024) return `${bytes.toFixed(2)} B/s`;
+                if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(2)} KB/s`;
+                if (bytes < 1024 * 1024 * 1024) return `${(bytes / 1024 / 1024).toFixed(2)} MB/s`;
+                return `${(bytes / 1024 / 1024 / 1024).toFixed(2)} GB/s`;
+            };
+
+            const formatNetworkTotal = (bytes) => {
+                if (bytes < 1024) return `${bytes.toFixed(2)} B`;
+                if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(2)} KB`;
+                if (bytes < 1024 * 1024 * 1024) return `${(bytes / 1024 / 1024).toFixed(2)} MB`;
+                return `${(bytes / 1024 / 1024 / 1024).toFixed(2)} GB`;
+            };
+
+            // 计算速率（每秒）
+            const networkIn = metrics.network.rx_bytes;
+            const networkOut = metrics.network.tx_bytes;
+
+            // 更新图表数据
+            networkChart.data.labels.push(now);
+            networkChart.data.datasets[0].data.push(networkIn);
+            networkChart.data.datasets[1].data.push(networkOut);
+
+            // 保持最近10个数据点
+            if (networkChart.data.labels.length > 10) {
+                networkChart.data.labels.shift();
+                networkChart.data.datasets[0].data.shift();
+                networkChart.data.datasets[1].data.shift();
+            }
+
+            // 更新图表
+            networkChart.update();
+
+            // 更新实时数据显示
+            document.getElementById(`network-in-${serverId}`).textContent = formatNetworkSpeed(networkIn);
+            document.getElementById(`network-out-${serverId}`).textContent = formatNetworkSpeed(networkOut);
+            document.getElementById(`network-total-in-${serverId}`).textContent = formatNetworkTotal(metrics.network.rx_bytes_total || 0);
+            document.getElementById(`network-total-out-${serverId}`).textContent = formatNetworkTotal(metrics.network.tx_bytes_total || 0);
+
+            // 动态调整Y轴范围
+            const maxValue = Math.max(
+                ...networkChart.data.datasets[0].data,
+                ...networkChart.data.datasets[1].data
+            );
+            networkChart.options.scales.yAxes[0].ticks.max = maxValue * 1.2;
+            networkChart.update();
+        }
+
+        // 更新实时数据显示
+        if (metrics.load_average) {
+            document.getElementById(`load-value-${serverId}`).textContent = 
+                metrics.load_average[0].toFixed(2);
+        }
     },
 
     // 加载站点数据
@@ -385,7 +881,7 @@ const App = {
         try {
             const response = await fetch('/api/sites');
             if (!response.ok) {
-                throw new Error('获取站点列表失败');
+                throw new Error('取站点列表失败');
             }
             this.data.sites = await response.json();
             this.renderSiteList();
@@ -410,7 +906,7 @@ const App = {
         }
     },
 
-    // 添加配置站点方法
+    // 添加���置站点方法
     configSite(siteId) {
         // 获取站点信息
         const site = this.data.sites.find(s => s.id === siteId);
@@ -420,7 +916,7 @@ const App = {
         }
 
         // TODO: 实现站点配置对话框
-        console.log('配置站点:', site);
+        console.log('置站点:', site);
     },
 
     // 添加删除站点方法
@@ -550,179 +1046,42 @@ const App = {
         }
     },
 
-
-    // 添加显示服务器对话框方法
-    showAddServerDialog() {
-        const dialog = document.createElement('div');
-        dialog.className = 'modal';
-        dialog.innerHTML = `
-            <div class="modal-overlay"></div>
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h3>添加服务器</h3>
-                    <button class="close-btn" onclick="this.closest('.modal').remove()">&times;</button>
-                </div>
-                <div class="modal-body">
-                    <form id="add-server-form" class="server-form">
-                        <div class="form-group">
-                            <label>服务器名称</label>
-                            <input 
-                                type="text" 
-                                name="name"
-                                placeholder="请输入服务器名称"
-                                required
-                            >
-                        </div>
-                        <div class="form-group">
-                            <label>IP地址</label>
-                            <input 
-                                type="text" 
-                                name="ip"
-                                placeholder="请输入IP地址"
-                                required
-                            >
-                        </div>
-                        <div class="form-group">
-                            <label>用户名</label>
-                            <input 
-                                type="text" 
-                                name="username"
-                                placeholder="请输入用户名"
-                                required
-                            >
-                        </div>
-                        <div class="form-group">
-                            <label>认证方式</label>
-                            <div class="radio-group">
-                                <label>
-                                    <input type="radio" name="auth_type" value="password" checked> 密码
-                                </label>
-                                <label>
-                                    <input type="radio" name="auth_type" value="key"> SSH密钥
-                                </label>
-                            </div>
-                        </div>
-                        <div class="form-group password-group">
-                            <label>密码</label>
-                            <input 
-                                type="password" 
-                                name="password"
-                                placeholder="请输入密码"
-                            >
-                        </div>
-                        <div class="form-group key-group" style="display: none;">
-                            <label>SSH密钥</label>
-                            <input 
-                                type="file" 
-                                name="key_file"
-                                accept=".pem,.key"
-                            >
-                        </div>
-                        <div class="form-actions">
-                            <button type="button" class="btn btn-default" onclick="this.closest('.modal').remove()">取消</button>
-                            <button type="submit" class="btn btn-primary">确定</button>
-                        </div>
-                    </form>
-                </div>
-            </div>
-        `;
-
-        document.body.appendChild(dialog);
-
-        // 处理认证方式切换
-        const authTypeInputs = dialog.querySelectorAll('input[name="auth_type"]');
-        const passwordGroup = dialog.querySelector('.password-group');
-        const keyGroup = dialog.querySelector('.key-group');
-
-        authTypeInputs.forEach(input => {
-            input.addEventListener('change', (e) => {
-                if (e.target.value === 'password') {
-                    passwordGroup.style.display = 'block';
-                    keyGroup.style.display = 'none';
-                } else {
-                    passwordGroup.style.display = 'none';
-                    keyGroup.style.display = 'block';
-                }
-            });
-        });
-
-        // 添加表单提交处理
-        document.getElementById('add-server-form').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const formData = new FormData(e.target);
-            const serverData = {
-                name: formData.get('name'),
-                ip: formData.get('ip'),
-                username: formData.get('username'),
-                auth_type: formData.get('auth_type')
-            };
-
-            if (serverData.auth_type === 'password') {
-                serverData.password = formData.get('password');
-            } else {
-                const keyFile = formData.get('key_file');
-                if (keyFile) {
-                    try {
-                        const keyFormData = new FormData();
-                        keyFormData.append('file', keyFile);
-                        const response = await fetch('/api/upload-key', {
-                            method: 'POST',
-                            body: keyFormData
-                        });
-                        const result = await response.json();
-                        serverData.key_path = result.path;
-                    } catch (error) {
-                        console.error('上传SSH密钥失败:', error);
-                        Message.error('上传SSH密钥失败');
-                        return;
-                    }
-                }
-            }
-
-            fetch('/api/servers', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(serverData)
-            })
-                .then(response => response.json())
-                .then(() => {
-                    Message.success('服务器添加成功');
-                    this.loadServers();
-                    dialog.remove();
-                })
-                .catch(error => {
-                    console.error('添加服务器失败:', error);
-                    Message.error('添加服务器失败');
-                });
-        });
-    },
-    monitorServer: function(serverId) {
-        // 实现服务器监控逻辑
-        console.log('监控服务器:', serverId);
-
-        
-        // 这里添加具体的监控逻辑
-    },
-
-    executeCommand: function(serverId) {
+    executeCommand: function (serverId) {
         // 实现命令执行逻辑
         console.log('执行命令于服务器:', serverId);
         // 这里添加具体的命令执行逻辑
     },
 
-    viewLogs: function(serverId) {
+    viewLogs: function (serverId) {
         // 实现日志查看逻辑
         console.log('查看服务器日志:', serverId);
         // 这里添加具体的日志查看逻辑
     },
 
-    deleteServer: function(serverId) {
+    deleteServer: function (serverId) {
         // 实现服务器删除逻辑
         if (confirm('确定要删除这个服务器吗？')) {
             console.log('删除服务器:', serverId);
             // 这里添加具体的删除逻辑
+        }
+    },
+
+    closeMonitor: function () {
+        if (this.statusInterval) {
+            clearInterval(this.statusInterval);
+            this.statusInterval = null;
+        }
+        // 销毁图表
+        if (this.cpuChart) this.cpuChart.destroy();
+        if (this.memoryChart) this.memoryChart.destroy();
+        if (this.diskChart) this.diskChart.destroy();
+        if (this.loadChart) this.loadChart.destroy();
+        if (this.networkChart) this.networkChart.destroy();
+        if (this.processChart) this.processChart.destroy();
+        
+        const monitorWindow = document.getElementById('server-monitor');
+        if (monitorWindow) {
+            monitorWindow.remove();
         }
     }
 };
@@ -735,7 +1094,7 @@ function initTabs() {
     const tabs = document.querySelectorAll('.tab-item');
     const panes = document.querySelectorAll('.tab-pane');
 
-    // 默认激活第一个标签
+    // 默认激活一个标签
     tabs[0].classList.add('active');
     panes[0].classList.add('active');
 

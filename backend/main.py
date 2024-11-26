@@ -14,8 +14,25 @@ from concurrent.futures import ThreadPoolExecutor
 import socket
 import platform
 import getpass
+import psutil
+import logging
+import time
 
-app = FastAPI()
+from contextlib import asynccontextmanager
+
+# 设置日志
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # 启动时执行
+    init_database()
+    yield
+    # 关闭时执行
+    pass
+
+app = FastAPI(lifespan=lifespan)
 
 # 允许跨域
 app.add_middleware(
@@ -257,24 +274,17 @@ def update_servers_table():
 # 获取本机信息
 def get_local_machine_info():
     try:
-        hostname = socket.gethostname()
-        ip = socket.gethostbyname(hostname)
-        system = platform.system()
-        username = getpass.getuser()
+        import socket
+        import getpass
         
         return {
-            "name": hostname,
-            "ip": ip,
-            "username": username,
-            "auth_type": "password",
-            "system_info": {
-                "os": system,
-                "version": platform.version(),
-                "machine": platform.machine()
-            }
+            "name": socket.gethostname(),
+            "ip": "127.0.0.1",  # 使用本地回环地址替代
+            "username": getpass.getuser(),
+            "auth_type": "password"
         }
     except Exception as e:
-        print(f"获取本机信息失败: {str(e)}")
+        print(f"获取本机信息出错: {str(e)}")
         return None
 
 # 初始化数据库
@@ -282,51 +292,114 @@ def init_database():
     db = get_db()
     cursor = db.cursor()
     
-    # 检查是否已有服务器数据
-    servers = cursor.execute("SELECT COUNT(*) FROM servers").fetchone()[0]
-    
-    if servers == 0:
-        # 获取本机信息并添加为第一个服务器
-        local_info = get_local_machine_info()
-        if local_info:
+    # 创建所有必需的表
+    cursor.executescript("""
+        -- 创建站点表
+        CREATE TABLE IF NOT EXISTS sites (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            domain TEXT NOT NULL,
+            config_path TEXT,
+            ssl_enabled BOOLEAN DEFAULT 0,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+
+        -- 创建服务器表
+        CREATE TABLE IF NOT EXISTS servers (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            ip TEXT NOT NULL,
+            username TEXT NOT NULL,
+            auth_type TEXT NOT NULL,
+            status TEXT DEFAULT 'inactive'
+        );
+
+        -- 创建服务器监控数据表
+        CREATE TABLE IF NOT EXISTS server_metrics (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            server_id INTEGER,
+            cpu_usage FLOAT,
+            memory_usage FLOAT,
+            disk_usage FLOAT,
+            network_in FLOAT,
+            network_out FLOAT,
+            load_average TEXT,
+            process_count INTEGER,
+            uptime INTEGER,
+            collected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (server_id) REFERENCES servers (id)
+        );
+
+        -- 创建服务运行状态表
+        CREATE TABLE IF NOT EXISTS service_status (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            server_id INTEGER,
+            service_name TEXT,
+            status TEXT,
+            port INTEGER,
+            pid INTEGER,
+            memory_usage FLOAT,
+            cpu_usage FLOAT,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (server_id) REFERENCES servers (id)
+        );
+
+        -- 创建监控记录表
+        CREATE TABLE IF NOT EXISTS monitoring_logs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            site_id INTEGER,
+            status_code INTEGER,
+            response_time FLOAT,
+            checked_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (site_id) REFERENCES sites (id)
+        );
+
+        -- 创建告警记录表
+        CREATE TABLE IF NOT EXISTS alerts (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            site_id INTEGER,
+            type TEXT,
+            message TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            status TEXT,
+            FOREIGN KEY (site_id) REFERENCES sites (id)
+        );
+    """)
+    db.commit()
+
+    try:
+        # 检查是否已有服务器数据
+        servers = cursor.execute("SELECT COUNT(*) FROM servers").fetchone()[0]
+        
+        if servers == 0:
+            # 获取本机信息并添加为第一个服务器
             try:
-                cursor.execute("""
-                    INSERT INTO servers (name, ip, username, auth_type, status)
-                    VALUES (?, ?, ?, ?, 'active')
-                """, (
-                    local_info["name"],
-                    local_info["ip"],
-                    local_info["username"],
-                    local_info["auth_type"]
-                ))
-                
-                # 添加系统信息到监控数据
-                cursor.execute("""
-                    INSERT INTO server_metrics (
-                        server_id, cpu_usage, memory_usage, disk_usage,
-                        network_in, network_out, load_average, process_count, uptime
-                    ) VALUES (?, 0, 0, 0, 0, 0, '0.0, 0.0, 0.0', 0, 0)
-                """, (cursor.lastrowid,))
-                
-                db.commit()
-                print("已添加本机作为初始服务器")
+                local_info = get_local_machine_info()
+                if local_info:
+                    cursor.execute("""
+                        INSERT INTO servers (name, ip, username, auth_type, status)
+                        VALUES (?, ?, ?, ?, 'active')
+                    """, (
+                        local_info["name"],
+                        local_info["ip"],
+                        local_info["username"],
+                        local_info["auth_type"]
+                    ))
+                    
+                    # 添加系统信息到监控数据
+                    cursor.execute("""
+                        INSERT INTO server_metrics (
+                            server_id, cpu_usage, memory_usage, disk_usage,
+                            network_in, network_out, load_average, process_count, uptime
+                        ) VALUES (?, 0, 0, 0, 0, 0, '0.0, 0.0, 0.0', 0, 0)
+                    """, (cursor.lastrowid,))
+                    
+                    db.commit()
+                    print("已添加本机作为初始服务器")
             except Exception as e:
-                print(f"添加本机信息失败: {str(e)}")
-    
-    # 检查是否已有示例站点
-    sites = cursor.execute("SELECT COUNT(*) FROM sites").fetchone()[0]
-    
-    if sites == 0:
-        # 添加示例站点
-        try:
-            cursor.execute("""
-                INSERT INTO sites (domain, status, ssl_enabled)
-                VALUES (?, 'active', 0)
-            """, (socket.gethostname(),))
-            db.commit()
-            print("已添加示例站点")
-        except Exception as e:
-            print(f"添加示例站点失败: {str(e)}")
+                print(f"获取本机信息失败: {str(e)}")
+                
+    except Exception as e:
+        print(f"初始化数据库失败: {str(e)}")
 
 # 在启动事件中调用初始化函数
 @app.on_event("startup")
@@ -445,52 +518,117 @@ async def get_server_logs(server_id: int):
     """, (server_id,)).fetchall()
     return [dict(log) for log in logs]
 
-# WebSocket连接管理器
-class ConnectionManager:
-    def __init__(self):
-        self.active_connections: Dict[int, WebSocket] = {}
-        self._lock = asyncio.Lock()
-
-    async def connect(self, server_id: int, websocket: WebSocket) -> None:
-        await websocket.accept()
-        async with self._lock:
-            self.active_connections[server_id] = websocket
-
-    def disconnect(self, server_id: int) -> None:
-        if server_id in self.active_connections:
-            del self.active_connections[server_id]
-
-    async def send_message(self, server_id: int, message: Dict[str, Any]) -> None:
-        if server_id in self.active_connections:
-            try:
-                await self.active_connections[server_id].send_json(message)
-            except Exception:
-                await self.disconnect(server_id)
-
-manager = ConnectionManager()
-
-# WebSocket路由
-@app.websocket("/ws/{server_id}")
-async def websocket_endpoint(websocket: WebSocket, server_id: int):
-    await manager.connect(server_id, websocket)
+# 添加新的状获取路由
+@app.get("/api/servers/{server_id}/status")
+async def get_server_status(server_id: int):
     try:
-        while True:
-            data = await websocket.receive_json()
-            # 处理接收到的监控数据
-            if data.get('type') == 'metrics':
-                await update_metrics(Metrics(**data['data']))
-            elif data.get('type') == 'services':
-                await update_services(data['data'])
-            elif data.get('type') == 'logs':
-                await update_logs(data['data'])
-            
-            # 广播数据给所有订阅该服务器的客户端
-            await manager.send_message(server_id, {
-                'type': 'update',
-                'data': data
-            })
-    except WebSocketDisconnect:
-        manager.disconnect(server_id)
+        # 这里可以根据server_id获取特定服务器的信息
+        metrics = get_server_metrics()
+        print(f"API返回的指标数据: {metrics}")  # 添加日志
+        return metrics
+    except Exception as e:
+        print(f"获取服务器状态失败: {str(e)}")
+        print(f"错误堆栈: {traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+def get_server_metrics():
+    try:
+        # 获取CPU使用率
+        cpu_usage = psutil.cpu_percent(interval=1)
+        print(f"CPU使用率: {cpu_usage}")
+        
+        # 获取内存使用情况
+        memory = psutil.virtual_memory()
+        memory_usage = memory.percent
+        print(f"内存使用情况: {memory_usage}")
+        
+        # 获取磁盘使用情况
+        disk = psutil.disk_usage('/')
+        disk_usage = disk.percent
+        print(f"磁盘使用情况: {disk_usage}")
+        
+        # 获取系统负载
+        load_average = psutil.getloadavg()
+        print(f"系统负载: {load_average}")
+        
+        # 获取网络IO统计
+        net_io = psutil.net_io_counters()
+        
+        # 计算速率（与上次获取的差值）
+        current_time = time.time()
+        if hasattr(get_server_metrics, 'last_net_io'):
+            time_delta = current_time - get_server_metrics.last_time
+            rx_speed = (net_io.bytes_recv - get_server_metrics.last_net_io.bytes_recv) / time_delta
+            tx_speed = (net_io.bytes_sent - get_server_metrics.last_net_io.bytes_sent) / time_delta
+        else:
+            rx_speed = 0
+            tx_speed = 0
+
+        # 保存本次数据用于下次计算
+        get_server_metrics.last_net_io = net_io
+        get_server_metrics.last_time = current_time
+
+        network = {
+            'rx_bytes': rx_speed,  # 当前接收速率
+            'tx_bytes': tx_speed,  # 当前发送速率
+            'rx_bytes_total': net_io.bytes_recv,  # 总接收量
+            'tx_bytes_total': net_io.bytes_sent   # 总发送量
+        }
+        
+        # 获取进程信息
+        try:
+            processes = {
+                'total': len(psutil.pids()),
+                'threads': sum(p.num_threads() for p in psutil.process_iter(['num_threads']))
+            }
+            print(f"进程信息: {processes}")
+        except Exception as e:
+            print(f"获取进程信息失败: {str(e)}")
+            processes = {'total': 0, 'threads': 0}
+        
+        metrics = {
+            'server_info': {
+                'status': 'active'
+            },
+            'metrics': {
+                'cpu_usage': round(cpu_usage, 2),
+                'memory_usage': round(memory_usage, 2),
+                'memory_total': round(memory.total / (1024 * 1024 * 1024), 2),
+                'memory_used': round(memory.used / (1024 * 1024 * 1024), 2),
+                'disk_usage': round(disk_usage, 2),
+                'disk_total': round(disk.total / (1024 * 1024 * 1024), 2),
+                'disk_used': round(disk.used / (1024 * 1024 * 1024), 2),
+                'load_average': load_average,
+                'network': network,
+                'processes': processes,
+                'timestamp': datetime.now().isoformat()
+            }
+        }
+        print(f"返回的完整指标: {metrics}")
+        return metrics
+        
+    except Exception as e:
+        import traceback
+        print(f"获取系统信息时出错: {str(e)}")
+        print(f"错误堆栈: {traceback.format_exc()}")
+        return {
+            'server_info': {
+                'status': 'error'
+            },
+            'metrics': {
+                'cpu_usage': 0,
+                'memory_usage': 0,
+                'disk_usage': 0,
+                'load_average': [0, 0, 0],
+                'network': {
+                    'rx_bytes': 0,
+                    'tx_bytes': 0,
+                    'rx_bytes_total': 0,
+                    'tx_bytes_total': 0
+                },
+                'processes': {'total': 0, 'threads': 0}
+            }
+        }
 
 if __name__ == "__main__":
     import uvicorn
