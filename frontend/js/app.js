@@ -16,12 +16,27 @@ const App = {
 # 1. 服务器ID: [添加服务器后在此显示]
 # 2. 服务器地址: ${window.location.hostname}:9001
 # 3. 监控间隔: 60秒
-`
+`,
+        nginxInstalled: false  // 添加 Nginx 安装状态
     },
 
     // 初始化应用
     async init() {
         console.log('初始化应用');
+        
+        // 检查 Nginx 状态
+        try {
+            const response = await fetch('/api/check-nginx');
+            const data = await response.json();
+            this.data.nginxInstalled = data.installed;
+            if (data.installed) {
+                Message.success('检测到 Nginx 已安装');
+            }
+        } catch (error) {
+            console.error('检查 Nginx 状态失败:', error);
+        }
+
+        // 继续其他初始化
         this.bindEvents();
         await this.loadInitialData();
         this.renderUI();
@@ -194,12 +209,6 @@ const App = {
         if (addSiteBtn) {
             addSiteBtn.addEventListener('click', () => this.showAddSiteDialog());
         }
-
-        // 复制命令按钮
-        const copyCommandBtn = document.querySelector('#copy-command-btn');
-        if (copyCommandBtn) {
-            copyCommandBtn.addEventListener('click', () => this.copyInstallCommand());
-        }
     },
 
     // 加载初始数据
@@ -244,6 +253,17 @@ const App = {
 
         // 更新当前标签页
         this.updateActiveTab();
+
+        // 渲染 Nginx 状态
+        const nginxStatusContainer = document.querySelector('.nginx-status-container');
+        if (nginxStatusContainer) {
+            nginxStatusContainer.innerHTML = this.data.nginxInstalled ? `
+                <div class="nginx-status">
+                    <span class="status-icon active">✓</span>
+                    <span class="status-text">Nginx 已安装并运行</span>
+                </div>
+            ` : '';
+        }
     },
 
     // 切换标签页
@@ -796,7 +816,7 @@ const App = {
             diskChart.update();
         }
 
-        // 更新负载图表
+        // 更负载图表
         const loadChart = this[`loadChart-${serverId}`];
         if (loadChart) {
             const now = new Date().toLocaleTimeString();
@@ -952,7 +972,8 @@ const App = {
                     }
                     return;
                 }
-                // Nginx 已安装，继续显示添加站点对话框
+                // Nginx 已安装，显示提示并继续
+                Message.success('Nginx 已安装');
                 this.showAddSiteDialogContent();
             })
             .catch(error => {
@@ -1001,6 +1022,10 @@ const App = {
                     <button class="close-btn" onclick="App.closeDialog(this)">&times;</button>
                 </div>
                 <div class="modal-body">
+                    <div class="nginx-status">
+                        <span class="status-icon active">✓</span>
+                        <span class="status-text">Nginx 已安装并运行</span>
+                    </div>
                     <form id="add-site-form" class="site-form">
                         <div class="form-group">
                             <label>域名</label>
@@ -1104,7 +1129,7 @@ const App = {
     },
 
     deleteServer: function (serverId) {
-        // ���现服务器删除逻辑
+        // 现服务器删除逻辑
         if (confirm('确定要删除这个服务器吗？')) {
             console.log('删除服务器:', serverId);
             // 这里添加具体的删除逻辑

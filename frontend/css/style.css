@@ -343,3 +343,91 @@ body {
     opacity: 0.6;
     cursor: not-allowed;
 }
+
+.nginx-status {
+    margin-bottom: 20px;
+    padding: 12px 15px;
+    background: #f0f9ff;
+    border: 1px solid #bae6fd;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.nginx-status .status-icon {
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    font-size: 14px;
+    font-weight: bold;
+}
+
+.nginx-status .status-icon.active {
+    background: #10b981;
+    color: white;
+}
+
+.nginx-status .status-text {
+    color: #0369a1;
+    font-size: 14px;
+}
+
+/* Nginx 状态容器样式 */
+.nginx-status-container {
+    margin: 20px 0;
+}
+
+.nginx-status {
+    margin-bottom: 20px;
+    padding: 12px 15px;
+    background: #f0f9ff;
+    border: 1px solid #bae6fd;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.nginx-status .status-icon {
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    font-size: 14px;
+    font-weight: bold;
+}
+
+.nginx-status .status-icon.active {
+    background: #10b981;
+    color: white;
+}
+
+.nginx-status .status-text {
+    color: #0369a1;
+    font-size: 14px;
+}
+
+/* 添加悬停效果 */
+.nginx-status:hover {
+    background: #e0f2fe;
+    transform: translateY(-1px);
+    transition: all 0.2s ease;
+}
